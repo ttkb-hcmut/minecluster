@@ -1,4 +1,9 @@
 defmodule App do
+  def entry() do
+    
+  end
+
+
 	def start(_type, _arg) do
 		{:ok, pid} = App.Supervisor.start_link(:ok)
 		# IO.puts ("hello world " <> PID.to_string(pid))
