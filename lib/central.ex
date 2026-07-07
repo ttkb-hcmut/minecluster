@@ -1,5 +1,5 @@
 defmodule Placeholder do
-  defstruct clientList: %{}
+  defstruct clientList: %{}, data: %{}
 end
 
 defmodule Central do
@@ -11,7 +11,7 @@ defmodule Central do
   end
   def setStatus(conn\\nil, self ,status) do
     case conn do
-      %Placeholder{clientList: _} ->
+      %Placeholder{} ->
         { :ok,
         conn
         |> Map.get_and_update(:clientList,
@@ -26,8 +26,17 @@ defmodule Central do
 
   def getClientList(conn\\nil) do
     case conn do
-      %Placeholder{clientList: cl} ->
-        cl |> Map.fetch(:clientList)
+      %Placeholder{} ->
+        conn |> Map.fetch(:clientList)
+      nil -> { :no_conn , nil } # case no connection
+      _ -> { :ok , nil } # do some connection stuff here
+    end
+  end
+
+  def fetchData(conn\\nil) do
+    case conn do
+      %Placeholder{} ->
+        conn |> Map.fetch(:data)
       nil -> { :no_conn , nil } # case no connection
       _ -> { :ok , nil } # do some connection stuff here
     end
