@@ -9,18 +9,18 @@ defmodule App do
 		# IO.puts ("hello world " <> PID.to_string(pid))
 		IO.puts ("hello " <> (pid |> :erlang.pid_to_list |> to_string) <> "!")
 		{:ok, pid}
-  end
+	end
 end
 
 defmodule App.Supervisor do
-  use Supervisor
+	use Supervisor
 
-  def start_link(args), do: Supervisor.start_link(__MODULE__, args, name: __MODULE__)
+	def start_link(args), do: Supervisor.start_link(__MODULE__, args, name: __MODULE__)
 
-  @impl true
-  def init(_init_arg) do
-    children = [
-    ]
-    Supervisor.init(children, strategy: :one_for_one)
-  end
+	@impl true
+	def init(_init_arg) do
+		children = [
+		]
+		Supervisor.init(children, strategy: :one_for_one)
+	end
 end
