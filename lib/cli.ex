@@ -1,18 +1,30 @@
 defmodule Command do
-  def foo() do
-    IO.puts "Ran foo"
-    nil
-  end
+  @doc"""
+  Demo exit point for Cli (implement these with cleanup like node disconnect handling, config saving, etc...)
+  """
   def exitCli() do
     IO.puts "cleaning up before quitting CLI"
     0
   end
+  @doc"""
+  Demo function ran without capturing input
+  """
+  def foo() do
+    IO.puts "Ran foo"
+    nil
+  end
+  @doc """
+  Demo function for captured input operations
+  """
   def captured({_,_,[head|_]}) do
     IO.puts "Ran captured with: " <> head
     nil
   end
+  @doc """
+  Prompts the user for more args to match up with current ctx's children
+  """
   def prompt({ctx,i,c}) do
-    IO.puts "What is your command? "
+    IO.puts "\nWhat is your command? "
     for k <- (ctx |> Map.get(:c,%{}) |> Map.keys) do
        "\t" <> (case k do
         :"" -> "<input>"
@@ -22,6 +34,9 @@ defmodule Command do
     input = IO.gets("> ")
     {ctx,i ++ ( input |> String.trim |> String.split),c}
   end
+  @doc """
+  Inform the user of the bad arg, expected args, and returns to Cli start
+  """
   def badArg(ctx, arg\\"") do
     IO.puts "Bad argument provided: " <> arg
     IO.puts "Expected:"
@@ -29,7 +44,7 @@ defmodule Command do
        "\t" <> (case k do
         :"" -> "<input>"
         _ -> k |> Atom.to_string
-      end) <> " => " <> (ctx |> Map.get(:c) |> Map.get(k) |> Map.get(:i,"No information"))
+      end) <> " => " <> (ctx |> Map.get(:c) |> Map.get(k) |> Map.get(:i,"No information")) |> IO.puts
     end
   end
 end
@@ -40,10 +55,34 @@ defmodule Cli do
     i: "Command info",
     a: fn a -> Command.prompt(a) end,
     c: %{
-      arg:  %{i: "2 Command info",
-              a:  fn _ -> Command.foo() end
-            },
-      "":   %{i: "capturing command arg",
+      config: %{
+        i: "Configure stuff",
+        a: fn a -> Command.prompt(a) end,
+        c: %{
+          address:  %{
+            i: "Address of self",
+            a:  fn a -> Command.prompt(a) end,
+            c:  %{
+              "": %{
+                i: "Value",
+                a: fn a -> Command.captured(a) end,
+                c: %{}
+              }
+            }
+          }
+        }
+      },
+      node:  %{
+        i: "Node commands",
+        a: fn a -> Command.prompt(a) end,
+        c: %{
+          start:  %{i: "Starts Node address defined in config",
+                    a: fn _ -> Command.foo() end,
+                    c: %{}
+                  }
+        }
+      },
+      connect_to_group:   %{i: "capturing command arg",
               a:  fn a -> Command.captured(a) end
             },
       exit: %{i: "exit the cli",
