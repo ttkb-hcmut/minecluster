@@ -38,7 +38,7 @@ defmodule Command do
   Inform the user of the bad arg, expected args, and returns to Cli start
   """
   def badArg(ctx, arg\\"") do
-    IO.puts "Bad argument provided: " <> arg
+    IO.puts "Error: bad argument provided: " <> arg
     IO.puts "Expected:"
     for k <- (ctx |> Map.get(:c,%{}) |> Map.keys) do
        "\t" <> (case k do
@@ -61,21 +61,21 @@ defmodule Cli do
         c: %{
           node_address:  %{
             i: "Address of self node used when connecting with other nodes",
-            a:  fn a -> Command.prompt(a) end,
+            a:  fn _ ->  Naas.setConfig("address",nil) end,
             c:  %{
               "": %{
                 i: "String in the form of <name>@<ip address>",
-                a: fn a -> Command.captured(a) end
+                a: fn {_,_,[v|_]} -> Naas.setConfig("address",v) end
               }
             }
           },
           node_cookie:  %{
             i: "Default secret node cookie used when connecting to nodes with the same cookie",
-            a:  fn a -> Command.prompt(a) end,
+            a:  fn _ -> Naas.setConfig("cookie",nil) end,
             c:  %{
               "": %{
                 i: "String",
-                a: fn a -> Command.captured(a) end
+                a: fn {_,_,[v|_]} -> Naas.setConfig("cookie",v) end
               }
             }
           }
@@ -86,12 +86,18 @@ defmodule Cli do
         a: fn a -> Command.prompt(a) end,
         c: %{
           start:  %{
-            i: "Starts Node address defined in config, or with the arg provided after it",
-            a: fn _ -> Command.foo() end,
+            i: "Starts Node address and cookie defined in config, or with the arg provided after it",
+            a: fn _ -> Naas.startNode() end,
             c: %{
               "": %{
                 i: "Captured address for Node starting",
-                a: fn a -> Command.captured(a) end
+                a: fn {_,_,[a|_]} -> Naas.startNode(a) end,
+                c: %{
+                  "": %{
+                    i: "Captured cookie for Node starting",
+                    a: fn {_,_,[c,a|_]} -> Naas.startNode(a,c) end
+                  }
+                }
               }
             }
           },
@@ -101,43 +107,37 @@ defmodule Cli do
             c: %{
               group: %{
                 i: "Try all nodes in group with the cookie provided by Config or the arg following",
-                a: fn a -> Command.prompt(a) end,
+                a: fn _ -> Naas.connectGroup() end,
                 c: %{
                   "": %{
-                    i: "Group name",
-                    a: fn a -> Command.captured(a) end,
-                    c: %{
-                      "": %{
-                        i: "Cookie override",
-                        a: fn a -> Command.captured(a) end
-                      }
-                    }
+                    i: "Cookie override",
+                    a: fn {_,_,[c|_]} -> Naas.connectGroup(c) end
                   }
                 }
               },
               "": %{
                 i: "Destination node address with the cookie provided by Config or the arg following",
-                a: fn a -> Command.captured(a) end,
+                a: fn {_,_,[a|_]} -> Naas.connectNode(a);nil end,
                 c: %{
                   "": %{
                     i: "Cookie override",
-                    a: fn a -> Command.captured(a) end
+                    a: fn {_,_,[c,a|_]} -> Naas.connectNode(a,c);nil end
                   }
                 }
               }
             }
           },
-          make_group: %{
+          add_group: %{
             i: "Adds all nodes currently connected to the group for when connecting node to group, Node must have already been started",
-            a: fn _ -> Command.foo() end
+            a: fn _ -> Naas.addGroup() end
           },
           disconnect: %{
             i: "Disconnects fromm current Node network",
-            a: fn _ -> Command.foo() end
+            a: fn _ -> Naas.disconnectNode() end
           },
           stop: %{
             i: "Stops node",
-            a: fn _ -> Command.foo() end
+            a: fn _ -> Naas.stopNode() end
           }
         }
       },
