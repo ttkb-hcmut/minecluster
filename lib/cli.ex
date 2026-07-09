@@ -163,9 +163,29 @@ defmodule Cli do
               }
             }
           },
+          list: %{
+            i: "List all nodes connected to",
+            a: fn _ -> Naas.networkInfo() end
+          },
           add_group: %{
-            i: "Adds all nodes currently connected to the group for when connecting node to group, Node must have already been started",
-            a: fn _ -> Naas.addGroup() end
+            i: "Adds all nodes currently connected or provided address arg to the group",
+            a: fn _ -> Naas.addGroup() end,
+            c: %{
+              "": %{
+                i: "Address to be added to group",
+                a: fn {_,_,[a|_]} -> Naas.addGroup(a) end
+              }
+            }
+          },
+          sync_group: %{
+            i: "Fetches and joins all saved group content from all connected Nodes",
+            a: fn _ -> Naas.syncGroup() end,
+            c: %{
+              "": %{
+                i: "Address to be added to group",
+                a: fn {_,_,[a|_]} -> Naas.addGroup(a) end
+              }
+            }
           },
           disconnect: %{
             i: "Disconnects fromm current Node network",

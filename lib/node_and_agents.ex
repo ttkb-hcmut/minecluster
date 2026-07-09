@@ -21,6 +21,8 @@ defmodule Naas do
       IO.puts "Imported group to Agent:"
       IO.inspect pid
     end)
+
+    {:ok, _} = Agent.start_link(fn ->  false end, name: :host)
   end
 
   def getConfig(k\\nil) do
@@ -100,16 +102,42 @@ defmodule Naas do
       [] -> nil
       l ->
         l |> List.foldl(false, fn ele, acc ->
-          if acc do true else( if(connectNode(ele) == true) do true else false end) end
+          if acc do true else(
+            if((Node.self() |> Atom.to_string) == ele) do
+              false
+            else
+              if(connectNode(ele) == true) do true else false end
+            end
+          ) end
         end)
     end
     nil
   end
-  def addGroup() do
+  def syncGroup() do
+    case Node.alive?() do
+      false -> IO.puts("#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} local node is not alive")
+      true ->
+        for n <- Node.list do
+          Agent.update(:group, fn l ->( l ++ :erpc.call(n,Agent,:get,[:group, & &1])) |> Enum.uniq
+          end)
+        end
+    end
+    IO.inspect Agent.get(:group, & &1)
+    File.write("group.config", Agent.get(:group, & &1) |> JSON.encode!)
+    nil
+  end
+  def addGroup(node\\nil) do
     case Node.alive?() do
       true ->
         Agent.update(:group, fn l ->
-          (l ++ (Node.list() |> Enum.map(fn v -> v |> Atom.to_string end)))
+          (l ++ (
+            case node do
+              nil ->
+                Node.list() |> Enum.map(fn v -> v |> Atom.to_string end)
+              _ ->
+                [node]
+            end
+            ))
           |> Enum.uniq
         end)
         IO.inspect Agent.get(:group, & &1)
@@ -117,6 +145,30 @@ defmodule Naas do
       false -> IO.puts("#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} local node is not alive")
     end
     File.write("group.config", Agent.get(:group, & &1) |> JSON.encode!)
+    nil
+  end
+  def getHostStatus() do
+    Agent.get(:host, & &1)
+  end
+  def setHostStatus(v) do
+    Agent.update(:host, fn _ -> v end)
+  end
+  def networkInfo() do
+    {hosts,plebs} = Node.list() |> List.foldl({[],[]}, fn ele,{h,p} ->
+      case :erpc.call(ele, Naas, :getHostStatus,[]) do
+        true -> {[ele|h], p}
+        false -> {h, [ele|p]}
+      end
+    end)
+    IO.puts "HOSTS:"
+    for n <- hosts do
+      n |> Atom.to_string |> IO.puts
+    end
+
+    IO.puts "\nNOT_HOSTS:"
+    for n <- plebs do
+      n |> Atom.to_string |> IO.puts
+    end
     nil
   end
   def stopNode() do
