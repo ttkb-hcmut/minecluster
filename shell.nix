@@ -5,7 +5,7 @@ let
 	''
 	'';
 	pkgs = with nixpkgs; [
-		elixir erlang
+		beam28Packages.elixir_1_19
 		pnpm nodejs
 	];
 in
