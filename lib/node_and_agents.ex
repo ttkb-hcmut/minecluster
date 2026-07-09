@@ -29,6 +29,15 @@ defmodule Naas do
       _ -> c |> Map.get(k,nil)
     end end)
   end
+
+  def getAllConfig() do
+    IO.puts "All stored configs:"
+    map = getConfig()
+    for k <- (map |> Map.keys) do
+       "\t" <> IO.ANSI.blue() <> k <> IO.ANSI.reset() <> ": " <> (map |> Map.get(k)) |> IO.puts
+    end
+    nil
+  end
   def setConfig(k\\nil,v\\nil) do
     case {k,v} do
       {nil,_} ->

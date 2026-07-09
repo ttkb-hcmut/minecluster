@@ -23,7 +23,7 @@ defmodule Command do
         :"" ->  "<input>"
         _ ->  (c |> Atom.to_string)
       end)
-      IO.puts "\n?> " <> (h |> List.foldl("",fn ele,acc-> ele <> " " <> acc end)) <> IO.ANSI.blue() <> command <> IO.ANSI.reset()
+      IO.puts "\n?> " <> (h |> List.foldl("",fn ele,acc-> ele <> " " <> acc end)) <> IO.ANSI.blue() <> IO.ANSI.underline() <> command <> IO.ANSI.reset()
       help([command|h],ctx |> Map.get(:c,%{}) |> Map.get(c,%{}))
     end
   end
@@ -106,6 +106,10 @@ defmodule Cli do
                 a: fn {_,_,[v|_]} -> Naas.setConfig("cookie",v) end
               }
             }
+          },
+          all:  %{
+            i: "Displays all active configs",
+            a:  fn _ -> Naas.getAllConfig() end
           }
         }
       },
@@ -176,7 +180,7 @@ defmodule Cli do
     }
   }
   end
-  def tree_visitor({ctx,input_list,cached}) do
+  def tree_traverser({ctx,input_list,cached}) do
     case input_list do
       [] ->
         (ctx |> Map.get(:a)).({ctx,input_list,cached})
@@ -202,12 +206,12 @@ defmodule Cli do
     end
     |> then(fn x -> case x do
     0 -> IO.puts "\n\n\nGoodnight! ==================="
-    nil -> {ctree(),[],[]} |> tree_visitor
-    _ -> x |> tree_visitor
+    nil -> {ctree(),[],[]} |> tree_traverser
+    _ -> x |> tree_traverser
     end end)
   end
   def start() do
-    tree_visitor({ctree(),[],[]})
+    tree_traverser({ctree(),[],[]})
     nil
   end
 end
