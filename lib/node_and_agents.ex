@@ -55,8 +55,8 @@ defmodule Naas do
   def startNode(address\\nil,cookie\\nil) do
     case {getConfig("address"),address} do
       {nil,nil} -> IO.puts("#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} no address found in arg or config")
-      {a,nil} -> IO.inspect Node.start(a|> String.to_atom, name_domain: :longnames)
-      {_,a} -> IO.inspect Node.start(a|> String.to_atom, name_domain: :longnames)
+      {a,nil} -> IO.inspect Node.start(a|> String.to_atom)
+      {_,a} -> IO.inspect Node.start(a|> String.to_atom)
     end
     case {getConfig("cookie"),cookie} do
       {nil,nil} -> nil
