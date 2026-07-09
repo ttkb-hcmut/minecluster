@@ -66,7 +66,7 @@ defmodule Command do
   Inform the user of the bad arg, expected args, and returns to Cli start
   """
   def badArg(ctx, arg\\"") do
-    IO.puts "#{IO.ANSI.red()}Error:#{IO.ANSI.red()} bad argument provided: " <> arg
+    IO.puts "#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} bad argument provided: " <> arg
     IO.puts "Expected:"
     for k <- (ctx |> Map.get(:c,%{}) |> Map.keys) do
        "\t" <> (case k do
