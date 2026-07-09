@@ -1,5 +1,33 @@
 defmodule Command do
   @doc"""
+  Demo printing all possible continuations from an inputed command
+  """
+  def help(h,ctx) do
+    info = ctx |> Map.get(:i, "NO INFORMATION")
+    children = ctx |> Map.get(:c,%{}) |> Map.keys
+
+    IO.puts "i: " <> info
+    IO.puts "c: " <> (
+        children
+        |> List.foldl("", fn ele, acc ->
+          acc <> " | " <> (
+            case ele do
+              :"" -> "<input>"
+              _ -> ele |> Atom.to_string
+            end
+          )
+        end)
+      )
+    for c <- children do
+      command = (case c do
+        :"" ->  "<input>"
+        _ ->  (c |> Atom.to_string)
+      end)
+      IO.puts "\n?> " <> (h |> List.foldl("",fn ele,acc-> ele <> " " <> acc end)) <> IO.ANSI.blue() <> command <> IO.ANSI.reset()
+      help([command|h],ctx |> Map.get(:c,%{}) |> Map.get(c,%{}))
+    end
+  end
+  @doc"""
   Demo exit point for Cli (implement these with cleanup like node disconnect handling, config saving, etc...)
   """
   def exitCli() do
@@ -24,12 +52,12 @@ defmodule Command do
   Prompts the user for more args to match up with current ctx's children
   """
   def prompt({ctx,i,c}) do
-    IO.puts "\nWhat is your command? "
+    IO.puts "\nWhat is your command? (append with arg #{IO.ANSI.blue()}help#{IO.ANSI.reset()} to see options) "
     for k <- (ctx |> Map.get(:c,%{}) |> Map.keys) do
-       "\t" <> (case k do
+       "\t" <> IO.ANSI.blue() <> (case k do
         :"" -> "<input>"
         _ -> k |> Atom.to_string
-      end) <> " => " <> (ctx |> Map.get(:c) |> Map.get(k) |> Map.get(:i,"No information")) |> IO.puts
+      end) <> IO.ANSI.reset() <> " => " <> (ctx |> Map.get(:c) |> Map.get(k) |> Map.get(:i,"No information")) |> IO.puts
     end
     input = IO.gets("> ")
     {ctx,i ++ ( input |> String.trim |> String.split),c}
@@ -38,7 +66,7 @@ defmodule Command do
   Inform the user of the bad arg, expected args, and returns to Cli start
   """
   def badArg(ctx, arg\\"") do
-    IO.puts "Error: bad argument provided: " <> arg
+    IO.puts "#{IO.ANSI.red()}Error:#{IO.ANSI.red()} bad argument provided: " <> arg
     IO.puts "Expected:"
     for k <- (ctx |> Map.get(:c,%{}) |> Map.keys) do
        "\t" <> (case k do
@@ -142,7 +170,7 @@ defmodule Cli do
         }
       },
       exit: %{
-        i: "exit the cli",
+        i: "Exit the cli",
         a: fn _ -> Command.exitCli() end
       }
     }
@@ -154,18 +182,19 @@ defmodule Cli do
         (ctx |> Map.get(:a)).({ctx,input_list,cached})
       [head | tail] -> (
         cList = ctx |> Map.get(:c, %{}) |> Map.keys |> Enum.map(fn k -> k |> Atom.to_string end)
-        case {head in cList, "" in cList} do
-          {true, _} ->
+        case {head == "help", head in cList, "" in cList} do
+          {true,_,_} -> Command.help([],ctx); nil
+          {_,true, _} ->
             { ctx |> Map.get(:c, %{}) |> Map.get(head |> String.to_existing_atom, %{}),
               tail,
               cached
             }
-          {false, true} ->
+          {_,false, true} ->
             { ctx |> Map.get(:c, %{}) |> Map.get(:"",%{}),
               tail,
               [head|cached]
             }
-          {false, false} ->
+          {_,false, false} ->
             Command.badArg(ctx, head)
             start()
         end

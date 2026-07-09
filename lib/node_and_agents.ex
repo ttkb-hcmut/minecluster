@@ -44,7 +44,7 @@ defmodule Naas do
 
   def startNode(address\\nil,cookie\\nil) do
     case {getConfig("address"),address} do
-      {nil,nil} -> IO.puts("Error: no address found in arg or config")
+      {nil,nil} -> IO.puts("#{IO.ANSI.red()}Error:#{IO.ANSI.red()} no address found in arg or config")
       {a,nil} -> IO.inspect Node.start(a|> String.to_atom)
       {_,a} -> IO.inspect Node.start(a|> String.to_atom)
     end
@@ -64,8 +64,8 @@ defmodule Naas do
     end
     case Node.connect(address |> String.to_atom) do
       true -> IO.puts "Successfully connected to nodes: "; IO.inspect Node.list(); true
-      false -> IO.puts "Error: Failed to connect to node: " <> address; false
-      :ignored -> IO.puts("Error: local node is not alive"); :ignored
+      false -> IO.puts "#{IO.ANSI.red()}Error:#{IO.ANSI.red()} Failed to connect to node: " <> address; false
+      :ignored -> IO.puts("#{IO.ANSI.red()}Error:#{IO.ANSI.red()} local node is not alive"); :ignored
     end
   end
   def disconnectNode() do
@@ -103,7 +103,7 @@ defmodule Naas do
         end)
         IO.inspect Agent.get(:group, & &1)
         nil
-      false -> IO.puts("Error: local node is not alive")
+      false -> IO.puts("#{IO.ANSI.red()}Error:#{IO.ANSI.red()} local node is not alive")
     end
     File.write("group.config", Agent.get(:group, & &1) |> JSON.encode!)
     nil
