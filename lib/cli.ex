@@ -59,7 +59,11 @@ defmodule Command do
         _ -> k |> Atom.to_string
       end) <> IO.ANSI.reset() <> " => " <> (ctx |> Map.get(:c) |> Map.get(k) |> Map.get(:i,"No information")) |> IO.puts
     end
-    input = IO.gets("> ")
+    input = IO.gets(
+      case (Node.self()) do
+        :nonode@nohost -> ""
+        s -> s |> Atom.to_string()
+      end <> "> ")
     {ctx,i ++ ( input |> String.trim |> String.split),c}
   end
   @doc """
