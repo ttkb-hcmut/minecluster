@@ -1,5 +1,6 @@
 defmodule Naas do
   def startup() do
+    System.cmd("epmd", ["-daemon"])
     if not File.exists?(".config") do
       File.write(".config", "{}")
     end
@@ -54,8 +55,8 @@ defmodule Naas do
   def startNode(address\\nil,cookie\\nil) do
     case {getConfig("address"),address} do
       {nil,nil} -> IO.puts("#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} no address found in arg or config")
-      {a,nil} -> IO.inspect Node.start(a|> String.to_atom, :longnames)
-      {_,a} -> IO.inspect Node.start(a|> String.to_atom, :longnames)
+      {a,nil} -> IO.inspect Node.start(a|> String.to_atom, name_domain: :longnames)
+      {_,a} -> IO.inspect Node.start(a|> String.to_atom, name_domain: :longnames)
     end
     case {getConfig("cookie"),cookie} do
       {nil,nil} -> nil
