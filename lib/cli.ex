@@ -82,6 +82,7 @@ defmodule Command do
 end
 
 defmodule Cli do
+  # k: %{i: nil, a: nil, c:%{}}
   def ctree() do
   %{
     i: "Command info",
@@ -166,6 +167,10 @@ defmodule Cli do
           list: %{
             i: "List all nodes connected to",
             a: fn _ -> Naas.networkInfo() end
+          },
+          group: %{
+            i: "List all addresses stored in group",
+            a: fn _ -> Naas.listGroup();nil end
           },
           add_group: %{
             i: "Adds all nodes currently connected or provided address arg to the group",

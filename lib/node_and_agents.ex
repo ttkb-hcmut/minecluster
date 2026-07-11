@@ -147,6 +147,11 @@ defmodule Naas do
     File.write("group.config", Agent.get(:group, & &1) |> JSON.encode!)
     nil
   end
+  def listGroup() do
+    Agent.get(:group, & &1)
+    IO.inspect Agent.get(:group, & &1)
+    nil
+  end
   def getHostStatus() do
     Agent.get(:host, & &1)
   end
