@@ -1,155 +1,225 @@
 defmodule Naas do
   def startup() do
+    {:ok, _} = Agent.start_link(fn -> true end, name: :interactive_output)
+    {:ok, _} = Agent.start_link(fn -> nil end, name: :group)
+    {:ok, _} = Agent.start_link(fn -> false end, name: :host)
     System.cmd("epmd", ["-daemon"])
     if not File.exists?(".config") do
       File.write(".config", "{}")
     end
-    if not File.exists?("group.config") do
-      File.write("group.config", "[]")
-    end
-
+    # if not File.exists?("group.config") do
+    #   File.write("group.config", "[]")
+    # end
+    File.mkdir_p(".\\groups")
     File.open(".config", [:read], fn file ->
       data = IO.read(file, :line)
-      {:ok, pid} = Agent.start_link(fn ->  data |> JSON.decode! end, name: :config)
-      IO.puts "Imported config to Agent:"
-      IO.inspect pid
+      {:ok, _} = Agent.start_link(fn ->  data |> JSON.decode! end, name: :config)
+      Cli.toScreen "Imported config to Agent"
+      # IO.inspect pid
     end)
 
-    File.open("group.config", [:read], fn file ->
-      data = IO.read(file, :line)
-      {:ok, pid} = Agent.start_link(fn ->  data |> JSON.decode! end, name: :group)
-      IO.puts "Imported group to Agent:"
-      IO.inspect pid
-    end)
 
-    {:ok, _} = Agent.start_link(fn ->  false end, name: :host)
+    # {:ok, _} = Agent.start_link(fn -> central.getfile end, name: :central)
+    # Agent.get(:central, fn c -> c.() end) |> JSON.decode!
+    # File.open("group.config", [:read], fn file ->
+    #   data = IO.read(file, :line)
+    #   {:ok, pid} = Agent.start_link(fn ->  data |> JSON.decode! end, name: :group)
+    #   Cli.toScreen "Imported group to Agent:"
+    #   IO.inspect pid
+    # end)
+
   end
 
   def getConfig(k\\nil) do
     Agent.get(:config, & &1)
     |> then(fn c -> case k do
-      nil -> c
-      _ -> c |> Map.get(k,nil)
+    nil -> c
+    _ -> c |> Map.get(k,nil)
     end end)
   end
 
   def getAllConfig() do
-    IO.puts "All stored configs:"
+    Cli.toScreen "All stored configs:"
     map = getConfig()
     for k <- (map |> Map.keys) do
-       "\t" <> IO.ANSI.blue() <> k <> IO.ANSI.reset() <> ": " <> (map |> Map.get(k)) |> IO.puts
+       "\t" <> IO.ANSI.blue() <> k <> IO.ANSI.reset() <> ": " <> (map |> Map.get(k)) |> Cli.toScreen
     end
     nil
   end
   def setConfig(k\\nil,v\\nil) do
     case {k,v} do
-      {nil,_} ->
-        Agent.update(:config, fn _ -> v end)
-      {_,nil} ->
-        Agent.update(:config, fn c -> c |> Map.delete(k) end)
-      {_,_} ->
-        Agent.update(:config, fn c -> c |> Map.put(k,v) end)
+    {nil,_} ->
+      Agent.update(:config, fn _ -> v end)
+    {_,nil} ->
+      Agent.update(:config, fn c -> c |> Map.delete(k) end)
+    {_,_} ->
+      Agent.update(:config, fn c -> c |> Map.put(k,v) end)
     end
     File.write(".config", getConfig() |> JSON.encode!)
     nil
   end
 
   def startNode(address\\nil,cookie\\nil) do
-    case {getConfig("address"),address} do
-      {nil,nil} -> IO.puts("#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} no address found in arg or config")
-      {a,nil} -> IO.inspect Node.start(a|> String.to_atom)
-      {_,a} -> IO.inspect Node.start(a|> String.to_atom)
+    {r, _} = case {getConfig("address"),address} do
+      {nil,nil} ->
+        Cli.error "no address found in arg or config";
+        {:error,nil}
+      {a,nil} -> Node.start(a|> String.to_atom)
+      {_,a} -> Node.start(a|> String.to_atom)
     end
-    case {getConfig("cookie"),cookie} do
-      {nil,nil} -> nil
-      {c,nil} -> Node.set_cookie(c|> String.to_atom)
-      {_,c} -> Node.set_cookie(c|> String.to_atom)
+    case {r, getConfig("cookie"),cookie} do
+      {:error,_,_} -> nil
+      {_,nil,nil} -> Node.set_cookie(:"")
+      {_,c,nil} ->
+        Node.set_cookie(c|> String.to_atom)
+        Cli.toScreen "Started node with address: #{Node.self() |> Atom.to_string}"
+      {_,_,c} ->
+        Node.set_cookie(c|> String.to_atom)
+        Cli.toScreen "Started node with address: #{Node.self() |> Atom.to_string}"
     end
     nil
   end
   def connectNode(address,cookie\\nil) do
     case {Node.alive?(),getConfig("cookie"),cookie} do
-      {false,_,_} -> nil
-      {_,nil,nil} -> nil
+      {false,_,_} -> startNode(nil,cookie)
+      {_,nil,nil} -> Node.set_cookie(:"")
       {_,c,nil} -> Node.set_cookie(c|> String.to_atom)
       {_,_,c} -> Node.set_cookie(c|> String.to_atom)
     end
     # address = if(address |> String.contains?(".")) do address else address<>".local" end
     case Node.connect(address |> String.to_atom) do
-      true -> IO.puts "Successfully connected to nodes: "; IO.inspect Node.list(); true
-      false -> IO.puts "#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} Failed to connect to node: " <> address; false
-      :ignored -> IO.puts("#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} local node is not alive"); :ignored
+      true -> Cli.toScreen "Successfully connected to nodes: "; Cli.toScreen Node.list(); true
+      false -> Cli.error "failed to connect to node: " <> address; false
+      :ignored -> Cli.error("local node is not alive"); :ignored
     end
   end
-  def disconnectNode() do
-    # case Node.disconnect(Node.self()) do
-    #   true -> IO.puts "Successfully disconnected"
-    #   false -> IO.puts "Error: Failed to disconnect"
-    #   :ignored -> IO.puts("Error: local node is not alive")
-    # end
-    Node.stop()
-    nil
-  end
-  def connectGroup(cookie\\nil) do
-    case {Node.alive?(),getConfig("cookie"),cookie} do
-      {false,_,_} -> nil
-      {_,nil,nil} -> nil
-      {_,c,nil} -> Node.set_cookie(c|> String.to_atom)
-      {_,_,c} -> Node.set_cookie(c|> String.to_atom)
-    end
-    case Agent.get(:group, & &1) do
-      nil -> nil
-      [] -> nil
-      l ->
-        l |> List.foldl(false, fn ele, acc ->
-          if acc do true else(
-            if((Node.self() |> Atom.to_string) == ele) do
-              false
-            else
-              if(connectNode(ele) == true) do true else false end
-            end
-          ) end
-        end)
+  def connectGroup(group) do
+    case getGroupInfo(group) do
+    nil -> nil
+    info ->
+      l = info|> Map.get("connections",[])
+      c = info|> Map.get("cookie",nil)
+      startNode(nil,c)
+      self = (Node.self() |> Atom.to_string)
+      l
+      |> List.foldl([], fn ele, acc -> [Task.async(fn -> if(self != ele) do connectNode(ele,c) else false end end)|acc]
+      end)
+      |> Task.await_many
+      |> List.foldl(false, fn ele, acc -> ele or acc end)
+      Agent.update(:group,fn _ -> group end)
     end
     nil
   end
   def syncGroup() do
-    case Node.alive?() do
-      false -> IO.puts("#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} local node is not alive")
-      true ->
-        for n <- Node.list do
-          Agent.update(:group, fn l ->( l ++ :erpc.call(n,Agent,:get,[:group, & &1])) |> Enum.uniq
+    case Agent.get(:group, & &1) do
+    nil -> Cli.error("not connected to a group")
+    g ->
+      case getGroupInfo(g) do
+      nil -> nil
+      info ->
+        {_,d} = info
+        |> Map.get_and_update("connections", fn l ->
+          {l, Node.list
+          |> List.foldl([], fn ele,acc ->
+            [Task.async( fn -> :erpc.call(ele,fn -> Naas.getGroupInfo(g) |> Map.get("connections",[]) end) end)|acc]
           end)
-        end
+          |> Task.yield_many(on_timeout: :kill_task, timeout: 1000)
+          |> List.foldl([Node.self() |> Atom.to_string |l], fn ele,acc ->
+            ele ++ acc
+          end)
+          |> Enum.uniq}
+        end)
+        File.write(".\\groups\\#{g}\\.config", d |> JSON.encode!)
+        Cli.toScreen d
+      end
     end
-    IO.inspect Agent.get(:group, & &1)
-    File.write("group.config", Agent.get(:group, & &1) |> JSON.encode!)
     nil
   end
-  def addGroup(node\\nil) do
-    case Node.alive?() do
-      true ->
-        Agent.update(:group, fn l ->
-          (l ++ (
-            case node do
-              nil ->
-                Node.list() |> Enum.map(fn v -> v |> Atom.to_string end)
-              _ ->
-                [node]
-            end
-            ))
-          |> Enum.uniq
-        end)
-        IO.inspect Agent.get(:group, & &1)
-        nil
-      false -> IO.puts("#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} local node is not alive")
+  def addGroup(node\\nil, group\\nil) do
+    addition = case {Node.list(), node} do
+      { [], nil} -> nil
+      { l , nil} -> l
+      { _ , n  } -> [n]
     end
-    File.write("group.config", Agent.get(:group, & &1) |> JSON.encode!)
+    destination = case {Agent.get(:group, & &1), group} do
+    {nil, nil} -> nil
+    { g , nil} -> g
+    { _ , g  } ->
+      if(g in listGroup()) do g else
+        Cli.error("no group found with name \'#{group}\'");
+        nil
+      end
+    end
+
+    case {addition,destination} do
+    {nil,nil} ->
+      Cli.error("can't add no node provided/no nodes connected to no group connected to/no group provided")
+    {nil,_} ->
+      Cli.error("can't add no node provided/no nodes connected to anything")
+    {_,nil} ->
+      Cli.error("can't add anything to no group connected to/no group provided")
+    {a , g} ->
+      d = File.open!(".\\groups\\#{group}\\.config", [:read])
+      |> IO.read(:line)
+      |> JSON.decode!
+      |> Map.get_and_update("connections", fn l -> ( a ++ l )|> Enum.uniq end)
+      File.write(".\\groups\\#{g}\\.config", d |> JSON.encode!)
+      Cli.toScreen d
+    end
     nil
   end
   def listGroup() do
-    Agent.get(:group, & &1)
-    IO.inspect Agent.get(:group, & &1)
+    case File.ls(".\\groups") do
+      {:ok, files} ->
+        files
+      {:error, reason} ->
+        Cli.error("failed to read .\\groups directory: #{reason}");
+        Cli.toScreen("Making .\\groups directory");
+        File.mkdir_p(".\\groups");
+        []
+    end
+  end
+  def makeGroup(name, cookie\\nil) do
+    if(name in listGroup()) do
+      Cli.error("group \'#{name}\' already exists");
+      nil
+    else
+      File.mkdir_p(".\\groups\\#{name}");
+      File.mkdir_p(".\\groups\\#{name}\\data");
+      File.write(".\\groups\\#{name}\\.config",
+        %{
+          "central" => %{},
+          "connections" => [],
+          "cookie" =>
+            case {getConfig("cookie"),cookie} do
+            {nil,nil} -> nil
+            {c,nil} -> c
+            {_,c} -> c
+            end,
+        } |> JSON.encode!
+        );
+      Cli.toScreen("Made group #{name} at path: \'.\\groups\\#{name}\'");
+      nil
+    end
+  end
+  def getGroupInfo(group) do
+    if(group not in listGroup()) do
+      Cli.error("no group found with name \'#{group}\'");
+      nil
+    else
+      File.open!(".\\groups\\#{group}\\.config", [:read])
+      |> IO.read(:line)
+      |> JSON.decode!
+    end
+  end
+  def groupStatus() do
+    case Agent.get(:group, & &1) do
+    nil -> Cli.toScreen "Not currently in a group"
+    a ->
+      Cli.toScreen "In group: " <> a;
+      Cli.toScreen getGroupInfo(a);
+      networkInfo();
+    end
     nil
   end
   def getHostStatus() do
@@ -160,25 +230,24 @@ defmodule Naas do
   end
   def networkInfo() do
     {hosts,plebs} = Node.list() |> List.foldl({[],[]}, fn ele,{h,p} ->
-      case :erpc.call(ele, Naas, :getHostStatus,[]) do
-        true -> {[ele|h], p}
-        false -> {h, [ele|p]}
-      end
+      if(:erpc.call(ele, Naas, :getHostStatus,[])) do {[ele|h], p} else {h, [ele|p]} end
     end)
-    IO.puts "HOSTS:"
-    for n <- hosts do
-      n |> Atom.to_string |> IO.puts
-    end
-
-    IO.puts "\nNOT_HOSTS:"
-    for n <- plebs do
-      n |> Atom.to_string |> IO.puts
-    end
+    Cli.toScreen(hosts |> List.foldl("HOSTS:", fn ele,acc ->
+      acc <> "\n" <> (ele|> Atom.to_string)
+    end))
+    Cli.toScreen(plebs |> List.foldl("NOT HOSTS:", fn ele,acc ->
+      acc <> "\n" <> (ele|> Atom.to_string)
+    end))
+  end
+  def disconnectNode() do
+    stopNode()
+    startNode()
     nil
   end
   def stopNode() do
+    Agent.update(:group, fn _ -> nil end)
     Node.stop()
-    IO.puts("Stopped node")
+    Cli.toScreen("Stopped node")
     nil
   end
 end
