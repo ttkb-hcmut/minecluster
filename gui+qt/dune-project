@@ -2,8 +2,8 @@
 (name minecluster-gui-qt)
 (generate_opam_files true)
 (license "MIT")
-(maintainers ttb-hcmut)
-(authors ttb-hcmut)
+(maintainers ttkb-hcmut)
+(authors ttkb-hcmut)
 (package
  (name minecluster-gui-qt)
  (synopsis "GUI for [minecluster]")
