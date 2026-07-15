@@ -2,11 +2,11 @@ open Lablqml
 
 let main = () => {
 	let rec ctrl = () => ctrl'(Controller.create_controller())#handler
-	and ctrl' = it =>
-	{ as _; inherit Controller.controller(it);
+	and ctrl' = o =>
+	{ as _ ; inherit Controller.controller(o);
 		pub onMouseClicked = msg => Printf.printf("Reason says: '%s'\n%!", msg) };
 	(ctrl())->set_context_property(~ctx=get_view_exn(~name="rootContext"), ~name="controller");
-	Stdlib.print_endline("startup init at Reason side")
+	print_endline("startup init at Reason side")
 }
 
 let () =
