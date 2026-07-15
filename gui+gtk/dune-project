@@ -1,0 +1,10 @@
+(lang dune 3.14)
+(name minecluster-gui-gtk)
+(generate_opam_files true)
+(license "MIT")
+(maintainers ttkb-hcmut)
+(authors ttkb-hcmut)
+(package
+ (name minecluster-gui-gtk)
+ (synopsis "GUI for [minecluster]")
+ (depends ocaml reason ocgtk))
