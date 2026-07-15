@@ -6,7 +6,7 @@ let main = () => {
 	{ as _; inherit Controller.controller(it);
 		pub onMouseClicked = msg => Printf.printf("Reason says: '%s'\n%!", msg) };
 	(ctrl())->set_context_property(~ctx=get_view_exn(~name="rootContext"), ~name="controller");
-	print_endline("startup init at Reason side")
+	Stdlib.print_endline("startup init at Reason side")
 }
 
 let () =
