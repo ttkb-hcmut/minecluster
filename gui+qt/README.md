@@ -8,3 +8,4 @@ It's possible to step out of our nix shell build program, you can follow the ste
 
 Notes:
  - `lablqml` requires `moc`, the Meta-Object Compiler program of Qt, which comes from the `qtbase` package.
+ - `lablqml` requires `Qt5Quick` which comes from the `qt5-quickcontrols2-devel` package.

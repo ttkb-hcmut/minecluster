@@ -1,0 +1,40 @@
+(executable
+ (name program) (public_name minecluster-gui-qt)
+ (libraries lablqml lwt.unix threads foreign_headers)
+ (preprocess (pps lablqml.ppx))
+ (foreign_stubs
+  (language cxx)
+  (names qrc_resources controller_c moc_controller_c)
+  (flags
+   ((:include %{project_root}/config/c_flags.sexp)
+    -fPIC -std=c++11 -O3)))
+ (link_flags
+  (-ccopt -fPIC -cclib -lstdc++
+   (:include %{project_root}/config/ocaml_qt_libs.sexp)
+   -cclib -llablqml_stubs)))
+
+(library
+ (name foreign_headers) (modules)
+ (install_c_headers controller))
+
+(rule
+ (targets moc_controller_c.cpp)
+ (deps controller.h)
+ (action (run moc %{deps} -o %{targets})))
+
+(rule
+ (targets controller_c.cpp controller.h)
+ (deps controller.ml)
+ (action (run lablqml.pp_qt -ext cpp %{deps})))
+
+(rule
+ (targets qrc_resources.cpp)
+ (deps (:qrc resources.qrc) Root.qml)
+ (action
+  (run rcc -name resources %{qrc} -o %{targets})))
+
+(rule
+ (targets my_namespace.sexp import_name_my_namespace.sexp)
+ (deps config/discover.exe)
+ (action
+  (run config/discover.exe)))

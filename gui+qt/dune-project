@@ -1,0 +1,10 @@
+(lang dune 3.14)
+(name minecluster-gui-qt)
+(generate_opam_files true)
+(license "MIT")
+(maintainers ttb-hcmut)
+(authors ttb-hcmut)
+(package
+ (name minecluster-gui-qt)
+ (synopsis "GUI for [minecluster]")
+ (depends ocaml lablqml lwt))
