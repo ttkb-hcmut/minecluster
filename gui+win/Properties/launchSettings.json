@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "MineclusterGuiWin (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "MineclusterGuiWin (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
