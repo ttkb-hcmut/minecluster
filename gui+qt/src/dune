@@ -1,7 +1,7 @@
 (executable
- (name program) (public_name minecluster-gui-qt)
+ (name app) (public_name minecluster-gui-qt)
  (libraries lablqml lwt.unix threads foreign_headers)
- (preprocess (pps lablqml.ppx))
+ (preprocess (pps lablqml.ppx melange.ppx))
  (foreign_stubs
   (language cxx)
   (names qrc_resources controller_c moc_controller_c)
@@ -41,7 +41,7 @@
 
 (rule
  (targets controller_c.cpp controller.h)
- (deps controller.ml)
+ (deps Controller.re.ml)
  (action (run lablqml.pp_qt -ext cpp %{deps})))
 
 (rule
