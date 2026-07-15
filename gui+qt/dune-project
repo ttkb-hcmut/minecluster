@@ -7,4 +7,4 @@
 (package
  (name minecluster-gui-qt)
  (synopsis "GUI for [minecluster]")
- (depends ocaml lablqml (conf-qt (>= 5.15)) lwt))
+ (depends ocaml reason lablqml (conf-qt (>= 5.15)) lwt))
