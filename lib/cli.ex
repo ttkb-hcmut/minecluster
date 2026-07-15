@@ -1,13 +1,21 @@
 defmodule Command do
   @doc"""
+  turns function output to be Json for non interactable mode
+  """
+  def run(module,function,args) do
+
+    # 2. Execute the function
+    IO.puts %{type: "output", data: apply(module, function, args)} |> JSON.encode!
+  end
+  @doc"""
   Demo printing all possible continuations from an inputed command
   """
   def help(h,ctx) do
     info = ctx |> Map.get(:i, "NO INFORMATION")
     children = ctx |> Map.get(:c,%{}) |> Map.keys
 
-    IO.puts "i: " <> info
-    IO.puts "c: " <> (
+    Cli.toScreen "i: " <> info
+    Cli.toScreen "c: " <> (
         children
         |> List.foldl("", fn ele, acc ->
           acc <> " | " <> (
@@ -23,7 +31,7 @@ defmodule Command do
         :"" ->  "<input>"
         _ ->  (c |> Atom.to_string)
       end)
-      IO.puts "\n?> " <> (h |> List.foldl("",fn ele,acc-> ele <> " " <> acc end)) <> IO.ANSI.blue() <> IO.ANSI.underline() <> command <> IO.ANSI.reset()
+      Cli.toScreen "\n?> " <> (h |> List.foldl("",fn ele,acc-> ele <> " " <> acc end)) <> IO.ANSI.blue() <> IO.ANSI.underline() <> command <> IO.ANSI.reset()
       help([command|h],ctx |> Map.get(:c,%{}) |> Map.get(c,%{}))
     end
   end
@@ -31,34 +39,35 @@ defmodule Command do
   Demo exit point for Cli (implement these with cleanup like node disconnect handling, config saving, etc...)
   """
   def exitCli() do
-    IO.puts "cleaning up before quitting CLI"
+    Cli.toScreen "cleaning up before quitting CLI"
     0
   end
   @doc"""
   Demo function ran without capturing input
   """
   def foo() do
-    IO.puts "Ran foo"
+    Cli.toScreen "Ran foo"
     nil
   end
   @doc """
   Demo function for captured input operations
   """
   def captured({_,_,[head|_]}) do
-    IO.puts "Ran captured with: " <> head
+    Cli.toScreen "Ran captured with: " <> head
     nil
   end
   @doc """
   Prompts the user for more args to match up with current ctx's children
   """
-  def prompt({ctx,i,c}) do
-    IO.puts "\nWhat is your command? (append with arg #{IO.ANSI.blue()}help#{IO.ANSI.reset()} to see options) "
+  def prompt({ctx,i,c},extra\\fn -> nil end) do
+    Cli.toScreen "\nWhat is your command? (append with arg #{IO.ANSI.blue()}help#{IO.ANSI.reset()} to see options) "
     for k <- (ctx |> Map.get(:c,%{}) |> Map.keys) do
        "\t" <> IO.ANSI.blue() <> (case k do
         :"" -> "<input>"
         _ -> k |> Atom.to_string
-      end) <> IO.ANSI.reset() <> " => " <> (ctx |> Map.get(:c) |> Map.get(k) |> Map.get(:i,"No information")) |> IO.puts
+      end) <> IO.ANSI.reset() <> " => " <> (ctx |> Map.get(:c) |> Map.get(k) |> Map.get(:i,"No information")) |> Cli.toScreen
     end
+    extra.()
     input = IO.gets(
       case (Node.self()) do
         :nonode@nohost -> ""
@@ -70,24 +79,51 @@ defmodule Command do
   Inform the user of the bad arg, expected args, and returns to Cli start
   """
   def badArg(ctx, arg\\"") do
-    IO.puts "#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} bad argument provided: " <> arg
-    IO.puts "Expected:"
-    for k <- (ctx |> Map.get(:c,%{}) |> Map.keys) do
-       "\t" <> (case k do
-        :"" -> "<input>"
-        _ -> k |> Atom.to_string
-      end) <> " => " <> (ctx |> Map.get(:c, %{}) |> Map.get(k) |> Map.get(:i,"No information")) |> IO.puts
-    end
+    Cli.error(
+      "bad argument provided: #{arg}\n" <>
+      (
+        ctx
+        |> Map.get(:c,%{})
+        |> Map.keys
+        |> List.foldl( "Expected:", fn ele,acc ->
+          acc <> "\n" <> case ele do
+          :"" -> "<input>"
+          _ -> ele |> Atom.to_string
+          end <> " => " <> (ctx |> Map.get(:c, %{}) |> Map.get(ele) |> Map.get(:i,"No information"))
+        end
+        )
+      )
+    )
   end
 end
 
 defmodule Cli do
+  def toScreen(input) do
+    case Agent.get(:interactive_output, & &1) do
+    true ->
+      IO.puts input
+    false ->
+      IO.puts %{type: "log", data: input} |> JSON.encode!
+    end
+  end
+  def error(input) do
+    case Agent.get(:interactive_output, & &1) do
+    true ->
+      IO.puts "#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} #{input}"
+    false ->
+      IO.puts %{type: "error", data: input} |> JSON.encode!
+    end
+  end
   # k: %{i: nil, a: nil, c:%{}}
   def ctree() do
   %{
     i: "Command info",
     a: fn a -> Command.prompt(a) end,
     c: %{
+      exit: %{
+        i: "Exit the cli",
+        a: fn _ -> Command.exitCli() end
+      },
       config: %{
         i: "Configure stuff",
         a: fn a -> Command.prompt(a) end,
@@ -118,93 +154,105 @@ defmodule Cli do
           }
         }
       },
-      node:  %{
-        i: "Node commands",
-        a: fn a -> Command.prompt(a) end,
+      start:  %{
+        i: "Starts Node address and cookie defined in config, or with the arg provided after it",
+        a: fn _ -> Naas.startNode() end,
         c: %{
-          start:  %{
-            i: "Starts Node address and cookie defined in config, or with the arg provided after it",
-            a: fn _ -> Naas.startNode() end,
+          "": %{
+            i: "Captured address for Node starting",
+            a: fn {_,_,[a|_]} -> Naas.startNode(a) end,
             c: %{
               "": %{
-                i: "Captured address for Node starting",
-                a: fn {_,_,[a|_]} -> Naas.startNode(a) end,
-                c: %{
-                  "": %{
-                    i: "Captured cookie for Node starting",
-                    a: fn {_,_,[c,a|_]} -> Naas.startNode(a,c) end
-                  }
-                }
+                i: "Captured cookie for Node starting",
+                a: fn {_,_,[c,a|_]} -> Naas.startNode(a,c) end
               }
             }
-          },
-          connect:  %{
-            i: "Connect Node to the saved group or address with the cookie provided by Config or the arg following",
-            a: fn a -> Command.prompt(a) end,
-            c: %{
-              group: %{
-                i: "Try all nodes in group with the cookie provided by Config or the arg following",
-                a: fn _ -> Naas.connectGroup() end,
-                c: %{
-                  "": %{
-                    i: "Cookie override",
-                    a: fn {_,_,[c|_]} -> Naas.connectGroup(c) end
-                  }
-                }
-              },
-              "": %{
-                i: "Destination node address with the cookie provided by Config or the arg following",
-                a: fn {_,_,[a|_]} -> Naas.connectNode(a);nil end,
-                c: %{
-                  "": %{
-                    i: "Cookie override",
-                    a: fn {_,_,[c,a|_]} -> Naas.connectNode(a,c);nil end
-                  }
-                }
-              }
-            }
-          },
-          list: %{
-            i: "List all nodes connected to",
-            a: fn _ -> Naas.networkInfo() end
-          },
-          group: %{
-            i: "List all addresses stored in group",
-            a: fn _ -> Naas.listGroup();nil end
-          },
-          add_group: %{
-            i: "Adds all nodes currently connected or provided address arg to the group",
-            a: fn _ -> Naas.addGroup() end,
-            c: %{
-              "": %{
-                i: "Address to be added to group",
-                a: fn {_,_,[a|_]} -> Naas.addGroup(a) end
-              }
-            }
-          },
-          sync_group: %{
-            i: "Fetches and joins all saved group content from all connected Nodes",
-            a: fn _ -> Naas.syncGroup() end,
-            c: %{
-              "": %{
-                i: "Address to be added to group",
-                a: fn {_,_,[a|_]} -> Naas.addGroup(a) end
-              }
-            }
-          },
-          disconnect: %{
-            i: "Disconnects fromm current Node network",
-            a: fn _ -> Naas.disconnectNode() end
-          },
-          stop: %{
-            i: "Stops node",
-            a: fn _ -> Naas.stopNode() end
           }
         }
       },
-      exit: %{
-        i: "Exit the cli",
-        a: fn _ -> Command.exitCli() end
+      connect:  %{
+        i: "Connect Node to provided address or a saved group with the cookie provided by Config or the arg following",
+        a: fn a -> Command.prompt(a) end,
+        c: %{
+          group: %{
+            i: "Connect to group with provided group name following",
+            a: fn a -> Command.prompt(a, fn -> Cli.toScreen Naas.listGroup() end) end,
+            c: %{
+              "": %{
+                i: "Input a group name from listed",
+                a: fn {_,_,[c|_]} -> Naas.connectGroup(c) end
+              }
+            }
+          },
+          "": %{
+            i: "Destination node address with the cookie provided by Config or the arg following",
+            a: fn {_,_,[a|_]} -> Naas.connectNode(a);nil end,
+            c: %{
+              "": %{
+                i: "Cookie override",
+                a: fn {_,_,[c,a|_]} -> Naas.connectNode(a,c);nil end
+              }
+            }
+          }
+        }
+      },
+      list: %{
+        i: "List all nodes connected to",
+        a: fn _ -> Naas.networkInfo() end
+      },
+      group: %{
+        i: "List all addresses stored in group",
+        a: fn _ -> Cli.toScreen "\n Available groups:"; Cli.toScreen Naas.listGroup() ;nil end,
+        c: %{
+          make: %{
+            i: "Create a new group with provided name and default cookie or provided arg",
+            a: fn a -> Command.prompt(a) end,
+            c: %{
+              "": %{
+                i: "Name of group",
+                a: fn {_,_,[n|_]} -> Naas.makeGroup(n) end,
+                c: %{
+                  "": %{
+                    i: "Cookie of group",
+                    a: fn {_,_,[c,n|_]} -> Naas.makeGroup(n,c) end
+                  },
+                }
+              },
+            }
+          },
+          status: %{
+            i: "Shows information about the group you are in",
+            a: fn _ -> Naas.groupStatus() end
+          },
+          add: %{
+            i: "Adds all nodes currently connected or provided address arg to the group currently in or provided arg",
+            a: fn a -> Command.prompt(a) end,
+            c: %{
+              "": %{
+                i: "Address to be added to group",
+                a: fn {_,_,[a|_]} -> Naas.addGroup(a) end,
+                c: %{
+                  "": %{
+                    i: "Group to add to",
+                    a: fn {_,_,[g,a|_]} -> Naas.addGroup(a,g) end
+                  }
+                }
+              }
+            }
+            },
+          sync: %{
+            i: "Collects all other connections from other nodes in this group",
+            a: fn _ -> Naas.syncGroup() end
+          },
+        },
+      },
+      disconnect: %{
+        i: "Disconnects fromm current Node network",
+        a: fn _ -> Naas.disconnectNode() end
+      },
+      stop: %{
+        i: "Stops node",
+        a: fn _ -> Naas.stopNode() end
       }
     }
   }
@@ -234,7 +282,7 @@ defmodule Cli do
         )
     end
     |> then(fn x -> case x do
-    0 -> IO.puts "\n\n\nGoodnight! ==================="
+    0 -> Cli.toScreen "\n\n\nGoodnight! ==================="
     nil -> {ctree(),[],[]} |> tree_traverser
     _ -> x |> tree_traverser
     end end)

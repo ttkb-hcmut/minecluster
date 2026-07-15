@@ -1,3 +1,5 @@
+# alias Firebase, as: Central
+
 defmodule App do
   def entry() do
 
