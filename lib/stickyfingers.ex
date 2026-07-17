@@ -47,34 +47,40 @@ defmodule Zm
   end
 
 defmodule NodeCentral do
-  # defp transmit(dest,pathsrc,pathdest) do
-  #   # 1. Open the remote file for writing by spawning a process on Node 2
-  #   remote_pid = Node.spawn(dest, fn ->
-  #     # Ensure the directory exists on the remote node
-  #     File.mkdir_p!(Path.dirname(pathdest))
+  def recieve(dest,source_stream) do
+    # Ensure the directory exists on the remote node
+    File.mkdir_p!(Path.dirname(dest))
 
-  #     # Stream data into the remote file
-  #     remote_file_stream = File.stream!(pathdest,[:write, :binary])
-
-  #     receive do
-  #       {:stream, source_stream} ->
-  #         Enum.into(source_stream, remote_file_stream)
-  #     end
-  #     Zm.unzip(pathdest)
-  #   end)
-
-  #   # 2. Stream chunks of 64KB from the local file and send the stream reference
-  #   local_stream = File.stream!(pathsrc, [], 64_000)
-  #   Process.send(remote_pid, {:stream, local_stream},[])
-  #   pathdest
-  # end
-  # def send(zipped, address) do
-  #   src = Node.self() |> Atom.to_string
-  #   dest = ".\\temp\\#{src}-#{:crypto.hash(:sha256, DateTime.now!("Etc/UTC") |> DateTime.to_string) |> Base.encode16}"
-  #   pathdest = transmit(address,zipped,dest)
-  #   pathdest
-  # end
-  # def fetch(address) do
-  #   :erpc.call(address, Zm, :send, [Node.self()])
-  # end
+    # Stream data into the remote file
+    remote_file_stream = File.stream!(dest,[:write, :binary])
+    IO.puts "before file transfer"
+    Stream.into(source_stream, remote_file_stream) |> Stream.run
+    IO.puts "after file transfer"
+    :ok
+  end
+  def transmit(sendTo,src,dest) do
+    # 1. Open the remote file for writing by spawning a process on Node 2
+    local_stream = File.stream!(src, [], 64_000)
+    IO.puts "before erpc"
+    :ok = :erpc.call(sendTo, NodeCentral, :recieve, [dest,local_stream])
+    IO.puts "after erpc"
+  end
+  def post(srcFile) do
+    # dest = ".\\temp\\#{src}-#{:crypto.hash(:sha256, DateTime.now!("Etc/UTC") |> DateTime.to_string) |> Base.encode16}"
+    [central|_] = Node.list
+    |> Enum.map(fn a -> {a,:erpc.call(a, fn -> Agent.get(:central, & &1) end)} end)
+    |> Enum.filter(fn {_,v} -> v end)
+    filePath = ".\\central\\#{:erpc.call(central, fn -> Agent.get(:group, & &1) end)}"
+    transmit(central,srcFile,filePath)
+  end
+  def fetch() do
+    [central|_] = Node.list
+    |> Enum.map(fn a -> {a,:erpc.call(a, fn -> Agent.get(:central, & &1) end)} end)
+    |> Enum.filter(fn {_,v} -> v end)
+    centralFileName = "#{:erpc.call(central, fn -> Agent.get(:group, & &1) end)}.zip"
+    filePath = ".\\central\\#{centralFileName}"
+    tempPath = ".\\temp\\#{Agent.get(:group, & &1)}-#{:crypto.hash(:sha256, DateTime.now!("Etc/UTC") |> DateTime.to_string) |> Base.encode16}"
+    transmit(Node.self(),filePath,tempPath)
+    {tempPath,centralFileName}
+  end
 end
