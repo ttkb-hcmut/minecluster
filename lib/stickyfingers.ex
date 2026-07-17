@@ -2,7 +2,15 @@ alias NodeCentral, as: CentralApi
 
 defmodule Zm
 	do
-
+  def groupCheck() do
+    case (Agent.get(:group, & &1)) do
+      nil ->
+        Cli.error("not in a group, please make or join a group")
+        false
+      _ ->
+        true
+    end
+  end
 	def mkpath() do
 		now = DateTime.now!("Etc/UTC") |> DateTime.to_string
 		:crypto.hash(:sha256, now) |> Base.encode16
@@ -19,7 +27,7 @@ defmodule Zm
       files,
       cwd: "./groups/#{name}" |> String.to_charlist
     )
-    {tempPath,fileName}
+    "#{tempPath}/#{fileName}"
   end
 
   def unzip(zipped) do
@@ -29,66 +37,90 @@ defmodule Zm
   end
 
   def post() do
-    {tempPath,fileName} = zip(Agent.get(:group,& &1))
-    CentralApi.post("#{tempPath}/#{fileName}")
-    File.rm(tempPath)
-    # send from temp folder to recipient
+    if(groupCheck()) do
+      file = zip(Agent.get(:group,& &1))
+      CentralApi.post(file)
+      File.rm(file |> Path.dirname)
+      # send from temp folder to recipient
+    end
   end
 
   def fetch() do
-    {tempPath, fileName} = CentralApi.fetch()
-    unzip("#{tempPath}/#{fileName}")
-    File.rm(tempPath)
-    # download from address to temp
-    # make sure nothing is using the destination folder somehow
-    # unzip(name)
-  end
+    if(groupCheck()) do
+      case CentralApi.fetch() do
+        nil ->
+          Cli.error("fetching from central failed")
+        file ->
+          unzip(file)
+          File.rm(file |> Path.dirname)
+      end
 
+      # download from address to temp
+      # make sure nothing is using the destination folder somehow
+      # unzip(name)
+    end
+  end
 end
 
 defmodule NodeCentral do
+  def getCentralNode do
+    self = Node.self()
+    list = Node.list()
+    |> List.foldl([], fn ele, acc ->
+      [Task.async(fn ->
+        if(self != ele) do
+          :erpc.call(ele, fn -> {ele, Agent.get(:role, & &1) == :central} end)
+        else
+          {ele,false}
+      end end)|acc]
+    end)
+    |> Task.yield_many(on_timeout: :kill_task, timeout: 1000)
+    |> Enum.filter(fn {_,v} -> v end)
 
-  def write_begin(dest) do
+    if (list |> length == 0) do
+      nil
+    else
+      [central|_] = list
+      central
+    end
+  end
+  def write(dest,chunk) do
     {:ok, file} = File.open(dest, [:append, :binary, :raw])
-    file
-  end
-  def write(file,chunk) do
     IO.binwrite(file, [chunk])
-  end
-
-  def write_end(file) do
     File.close(file)
   end
 
-  def transmit(sendTo,src,dest,file) do
+  def transmit(sendTo,src,dest) do
     chunk_size = 65_536 # 65 thousand bytes blocks
-    :erpc.call(sendTo,File,:mkdir_p!,[dest])
-    file = :erpc.call(sendTo, NodeCentral, :write_begin, [dest<>"/"<>file])
+    :erpc.call(sendTo,File,:mkdir_p!,[dest |> Path.dirname])
     File.stream!(src,chunk_size)
     |> Stream.each(fn chunk ->
-        :erpc.call(sendTo, NodeCentral, :write, [file, chunk])
-      end)
+      :erpc.call(sendTo, NodeCentral, :write, [dest, chunk])
+    end)
     |> Stream.run()
-    :erpc.call(sendTo, NodeCentral, :write_end,[file])
   end
   def post(srcFile) do
-    # dest = "./temp/#{src}-#{:crypto.hash(:sha256, DateTime.now!("Etc/UTC") |> DateTime.to_string) |> Base.encode16}"
-    [central|_] = Node.list
-    |> Enum.map(fn a -> {a,:erpc.call(a, fn -> Agent.get(:central, & &1) end)} end)
-    |> Enum.filter(fn {_,v} -> v end)
-    centralFileName = "#{:erpc.call(central, fn -> Agent.get(:group, & &1) end)}.zip"
-    filePath = "./central/#{:erpc.call(central, fn -> Agent.get(:group, & &1) end)}"
-    transmit(central,srcFile,filePath,centralFileName)
+    case getCentralNode() do
+    nil ->
+      Cli.error("no central node found")
+    central ->
+      centralFileName = "#{:erpc.call(central, fn -> Agent.get(:group, & &1) end)}.zip"
+      filePath = "./central/#{centralFileName}"
+      transmit(central,srcFile,filePath)
+    end
     nil
   end
   def fetch() do
-    [central|_] = Node.list
-    |> Enum.map(fn a -> {a,:erpc.call(a, fn -> Agent.get(:central, & &1) end)} end)
-    |> Enum.filter(fn {_,v} -> v end)
-    centralFileName = "#{:erpc.call(central, fn -> Agent.get(:group, & &1) end)}.zip"
-    filePath = "./central/#{centralFileName}"
-    tempPath = "./temp/#{Agent.get(:group, & &1)}-#{:crypto.hash(:sha256, DateTime.now!("Etc/UTC") |> DateTime.to_string) |> Base.encode16}"
-    :erpc.call(central,NodeCentral,:transmit,[Node.self(),filePath,tempPath,".zip"])
-    {tempPath,".zip"}
+    case getCentralNode() do
+    nil ->
+      Cli.error("no central node found")
+      nil
+    central ->
+      centralFileName = "#{:erpc.call(central, fn -> Agent.get(:group, & &1) end)}.zip"
+      filePath = "./central/#{centralFileName}"
+      tempPath = "./temp/#{Agent.get(:group, & &1)}-#{Zm.mkpath}/#{centralFileName}"
+      :erpc.call(central,NodeCentral,:transmit,[Node.self(),filePath,tempPath])
+      tempPath
+    end
   end
 end

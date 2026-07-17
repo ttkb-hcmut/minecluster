@@ -2,7 +2,7 @@ defmodule Naas do
   def startup() do
     {:ok, _} = Agent.start_link(fn -> true end, name: :interactive_output)
     {:ok, _} = Agent.start_link(fn -> nil end, name: :group)
-    {:ok, _} = Agent.start_link(fn -> false end, name: :host)
+    {:ok, _} = Agent.start_link(fn -> :online end, name: :role) # :online | :host | :central
     System.cmd("epmd", ["-daemon"])
     if not File.exists?(".config") do
       File.write(".config", "{}")
@@ -81,16 +81,16 @@ defmodule Naas do
   end
   def connectNode(address,cookie\\nil) do
     case {Node.alive?(),getConfig("cookie"),cookie} do
-      {false,_,_} -> startNode(nil,cookie)
-      {_,nil,nil} -> Node.set_cookie(:"")
-      {_,c,nil} -> Node.set_cookie(c|> String.to_atom)
-      {_,_,c} -> Node.set_cookie(c|> String.to_atom)
+    {false,_,_} -> startNode(nil,cookie)
+    {_,nil,nil} -> Node.set_cookie(:"")
+    {_,c,nil} -> Node.set_cookie(c|> String.to_atom)
+    {_,_,c} -> Node.set_cookie(c|> String.to_atom)
     end
     # address = if(address |> String.contains?(".")) do address else address<>".local" end
     case Node.connect(address |> String.to_atom) do
-      true -> Cli.toScreen "Successfully connected to nodes: "; Cli.toScreen Node.list(); true
-      false -> Cli.error "failed to connect to node: " <> address; false
-      :ignored -> Cli.error("local node is not alive"); :ignored
+    true -> Cli.toScreen "Successfully connected to nodes: "; Cli.toScreen Node.list(); true
+    false -> Cli.error "failed to connect to node: " <> address; false
+    :ignored -> Cli.error("local node is not alive"); :ignored
     end
   end
   def connectGroup(group) do
@@ -101,12 +101,16 @@ defmodule Naas do
       c = info|> Map.get("cookie",nil)
       startNode(nil,c)
       self = (Node.self() |> Atom.to_string)
-      l
+      connected = l
       |> List.foldl([], fn ele, acc -> [Task.async(fn -> if(self != ele) do connectNode(ele,c) else false end end)|acc]
       end)
-      |> Task.await_many
+      |> Task.yield_many(on_timeout: :kill_task, timeout: 1000)
       |> List.foldl(false, fn ele, acc -> ele or acc end)
-      Agent.update(:group,fn _ -> group end)
+      if connected do
+        Agent.update(:group,fn _ -> group end)
+      else
+        Cli.error "connect to group failed"
+      end
     end
     nil
   end
@@ -222,20 +226,17 @@ defmodule Naas do
     end
     nil
   end
-  def getHostStatus() do
-    Agent.get(:host, & &1)
-  end
-  def setHostStatus(v) do
-    Agent.update(:host, fn _ -> v end)
-  end
   def networkInfo() do
-    {hosts,plebs} = Node.list() |> List.foldl({[],[]}, fn ele,{h,p} ->
-      if(:erpc.call(ele, Naas, :getHostStatus,[])) do {[ele|h], p} else {h, [ele|p]} end
+    {hosts,plebs} = Node.list() |> List.foldl({[],[],[]}, fn ele,{h,p} ->
+      case(:erpc.call(ele, fn -> Agent.get(:role, & &1) end)) do
+        :host -> {[ele|h], p}
+        _ -> {h, [ele|p]}
+      end
     end)
-    Cli.toScreen(hosts |> List.foldl("HOSTS:", fn ele,acc ->
+    Cli.toScreen(hosts |> List.foldl("HOST:", fn ele,acc ->
       acc <> "\n" <> (ele|> Atom.to_string)
     end))
-    Cli.toScreen(plebs |> List.foldl("NOT HOSTS:", fn ele,acc ->
+    Cli.toScreen(plebs |> List.foldl("CONNECTED:", fn ele,acc ->
       acc <> "\n" <> (ele|> Atom.to_string)
     end))
   end
