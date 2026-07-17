@@ -1,13 +1,19 @@
 alias NodeCentral, as: CentralApi
 
-defmodule Zm do
+defmodule Zm
+	do
+
+	def mkpath() do
+		now = DateTime.now!("Etc/UTC") |> DateTime.to_string
+		:crypto.hash(:sha256, now) |> Base.encode16
+	end
+
   def zip(name) do
-    tempPath = ".\\temp\\#{name}-#{:crypto.hash(:sha256, DateTime.now!("Etc/UTC") |> DateTime.to_string) |> Base.encode16}"
+    tempPath = ".\\temp\\#{name}-#{mkpath()}"
     fileName = "#{name}.zip"
     File.mkdir_p tempPath
     File.cp_r(".\\groups\\#{name}", tempPath)
-
-    files = File.ls!(".\\groups\\#{name}") |> Enum.map(fn p -> String.to_charlist(p) end)
+    files = File.ls!(".\\groups\\#{name}") |> Enum.map(String.to_charlist)
     {:ok,_} = :zip.create(
       "#{tempPath}\\#{fileName}"|> String.to_charlist,
       files,
@@ -15,26 +21,30 @@ defmodule Zm do
     )
     {tempPath,fileName}
   end
+
   def unzip(zipped) do
     # make sure the folder isn't used somehow
     group = Agent.get(:group,& &1)
     :zip.unzip(zipped |> String.to_charlist, ".\\groups\\#{group}" |> String.to_charlist)
   end
+
   def post() do
     {tempPath,fileName} = zip(Agent.get(:group,& &1))
     CentralApi.post("#{tempPath}\\#{fileName}")
     File.rm(tempPath)
     # send from temp folder to recipient
   end
+
   def fetch() do
-    {tempPath,fileName} = CentralApi.fetch()
+    {tempPath, fileName} = CentralApi.fetch()
     unzip("#{tempPath}\\#{fileName}")
     File.rm(tempPath)
     # download from address to temp
     # make sure nothing is using the destination folder somehow
     # unzip(name)
   end
-end
+
+  end
 
 defmodule NodeCentral do
   # defp transmit(dest,pathsrc,pathdest) do
