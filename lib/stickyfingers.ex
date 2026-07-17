@@ -37,24 +37,23 @@ defmodule Zm do
 end
 
 defmodule NodeCentral do
+  def recieve(dest,source_stream) do
+    # Ensure the directory exists on the remote node
+    File.mkdir_p!(Path.dirname(dest))
+
+    # Stream data into the remote file
+    remote_file_stream = File.stream!(dest,[:write, :binary])
+    IO.puts "before file transfer"
+    Stream.into(source_stream, remote_file_stream) |> Stream.run
+    IO.puts "after file transfer"
+    :ok
+  end
   def transmit(sendTo,src,dest) do
     # 1. Open the remote file for writing by spawning a process on Node 2
-    remote_pid = Node.spawn(sendTo, fn ->
-      # Ensure the directory exists on the remote node
-      File.mkdir_p!(Path.dirname(dest))
-
-      # Stream data into the remote file
-      remote_file_stream = File.stream!(dest,[:write, :binary])
-
-      receive do
-        {:stream, source_stream} ->
-          Enum.into(source_stream, remote_file_stream)
-      end
-    end)
-
-    # 2. Stream chunks of 64KB from the local file and send the stream reference
     local_stream = File.stream!(src, [], 64_000)
-    Process.send(remote_pid, {:stream, local_stream},[])
+    IO.puts "before erpc"
+    :ok = :erpc.call(sendTo, NodeCentral, :recieve, [dest,local_stream])
+    IO.puts "after erpc"
   end
   def post(srcFile) do
     # dest = ".\\temp\\#{src}-#{:crypto.hash(:sha256, DateTime.now!("Etc/UTC") |> DateTime.to_string) |> Base.encode16}"
