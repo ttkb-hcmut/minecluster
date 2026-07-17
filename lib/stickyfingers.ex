@@ -13,7 +13,7 @@ defmodule Zm
     fileName = "#{name}.zip"
     File.mkdir_p tempPath
     File.cp_r(".\\groups\\#{name}", tempPath)
-    files = File.ls!(".\\groups\\#{name}") |> Enum.map(String.to_charlist)
+    files = File.ls!(".\\groups\\#{name}") |> Enum.map(fn f -> String.to_charlist(f) end)
     {:ok,_} = :zip.create(
       "#{tempPath}\\#{fileName}"|> String.to_charlist,
       files,
@@ -44,26 +44,58 @@ defmodule Zm
     # unzip(name)
   end
 
-  end
+end
 
 defmodule NodeCentral do
-  def recieve(dest,source_stream) do
-    # Ensure the directory exists on the remote node
-    File.mkdir_p!(Path.dirname(dest))
-
-    # Stream data into the remote file
-    remote_file_stream = File.stream!(dest,[:write, :binary])
-    IO.puts "before file transfer"
-    Stream.into(source_stream, remote_file_stream) |> Stream.run
-    IO.puts "after file transfer"
-    :ok
+  def open_file(path) do
+    File.mkdir_p!(Path.dirname(path))
+    File.open!(path, [:write, :binary, :raw])
   end
+  def write_chunk(device, chunk) do
+    IO.binwrite(device, chunk)
+  end
+  def close_file(device) do
+    File.close(device)
+  end
+  # def recieve(dest,source_stream) do
+  #   # Ensure the directory exists on the remote node
+  #   File.mkdir_p!(Path.dirname(dest))
+
+  #   # Stream data into the remote file
+  #   remote_file_stream = File.stream!(dest,[:write, :binary])
+  #   IO.puts "before file transfer"
+  #   Stream.into(source_stream, remote_file_stream) |> Stream.run
+  #   IO.puts "after file transfer"
+  #   :ok
+  # end
   def transmit(sendTo,src,dest) do
-    # 1. Open the remote file for writing by spawning a process on Node 2
-    local_stream = File.stream!(src, [], 64_000)
-    IO.puts "before erpc"
-    :ok = :erpc.call(sendTo, NodeCentral, :recieve, [dest,local_stream])
-    IO.puts "after erpc"
+    # # 1. Open the remote file for writing by spawning a process on Node 2
+    # local_stream = File.stream!(src, [], 64_000)
+    # IO.puts "before erpc"
+    # :ok = :erpc.call(sendTo, NodeCentral, :recieve, [dest,local_stream])
+    # IO.puts "after erpc"
+
+    source_path = src
+    dest_path = dest
+    target_node = sendTo
+    chunk_size = 65_536 # 64 KB blocks
+
+    remote_device = :erpc.call(target_node, NodeCentral, :open_file, [dest_path])
+
+    try do
+      source_path
+      |> File.stream!([], chunk_size)
+      |> Stream.each(fn chunk ->
+          # Stream directly over the network wire
+          :erpc.call(target_node, NodeCentral, :write_chunk, [remote_device, chunk])
+        end)
+      |> Stream.run()
+
+      IO.puts("Transfer completed successfully!")
+
+    after
+      :erpc.call(target_node, NodeCentral, :close_file, [remote_device])
+    end
   end
   def post(srcFile) do
     # dest = ".\\temp\\#{src}-#{:crypto.hash(:sha256, DateTime.now!("Etc/UTC") |> DateTime.to_string) |> Base.encode16}"
