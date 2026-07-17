@@ -10,7 +10,7 @@ defmodule Naas do
     # if not File.exists?("group.config") do
     #   File.write("group.config", "[]")
     # end
-    File.mkdir_p(".\\groups")
+    File.mkdir_p("./groups")
     File.open(".config", [:read], fn file ->
       data = IO.read(file, :line)
       {:ok, _} = Agent.start_link(fn ->  data |> JSON.decode! end, name: :config)
@@ -129,7 +129,7 @@ defmodule Naas do
           end)
           |> Enum.uniq}
         end)
-        File.write(".\\groups\\#{g}\\.config", d |> JSON.encode!)
+        File.write("./groups/#{g}/.config", d |> JSON.encode!)
         Cli.toScreen d
       end
     end
@@ -159,23 +159,23 @@ defmodule Naas do
     {_,nil} ->
       Cli.error("can't add anything to no group connected to/no group provided")
     {a , g} ->
-      d = File.open!(".\\groups\\#{group}\\.config", [:read])
+      d = File.open!("./groups/#{group}/.config", [:read])
       |> IO.read(:line)
       |> JSON.decode!
       |> Map.get_and_update("connections", fn l -> ( a ++ l )|> Enum.uniq end)
-      File.write(".\\groups\\#{g}\\.config", d |> JSON.encode!)
+      File.write("./groups/#{g}/.config", d |> JSON.encode!)
       Cli.toScreen d
     end
     nil
   end
   def listGroup() do
-    case File.ls(".\\groups") do
+    case File.ls("./groups") do
       {:ok, files} ->
         files
       {:error, reason} ->
-        Cli.error("failed to read .\\groups directory: #{reason}");
-        Cli.toScreen("Making .\\groups directory");
-        File.mkdir_p(".\\groups");
+        Cli.error("failed to read ./groups directory: #{reason}");
+        Cli.toScreen("Making ./groups directory");
+        File.mkdir_p("./groups");
         []
     end
   end
@@ -184,9 +184,9 @@ defmodule Naas do
       Cli.error("group \'#{name}\' already exists");
       nil
     else
-      File.mkdir_p(".\\groups\\#{name}");
-      File.mkdir_p(".\\groups\\#{name}\\data");
-      File.write(".\\groups\\#{name}\\.config",
+      File.mkdir_p("./groups/#{name}");
+      File.mkdir_p("./groups/#{name}/data");
+      File.write("./groups/#{name}/.config",
         %{
           "central" => %{},
           "connections" => [],
@@ -198,7 +198,7 @@ defmodule Naas do
             end,
         } |> JSON.encode!
         );
-      Cli.toScreen("Made group #{name} at path: \'.\\groups\\#{name}\'");
+      Cli.toScreen("Made group #{name} at path: \'./groups/#{name}\'");
       nil
     end
   end
@@ -207,7 +207,7 @@ defmodule Naas do
       Cli.error("no group found with name \'#{group}\'");
       nil
     else
-      File.open!(".\\groups\\#{group}\\.config", [:read])
+      File.open!("./groups/#{group}/.config", [:read])
       |> IO.read(:line)
       |> JSON.decode!
     end

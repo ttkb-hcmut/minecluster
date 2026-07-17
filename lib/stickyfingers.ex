@@ -52,8 +52,9 @@ defmodule NodeCentral do
     IO.binwrite(file, [chunk])
     File.close(file)
   end
+
   def transmit(sendTo,src,dest,file) do
-    chunk_size = 65_536 # 64 KB blocks
+    chunk_size = 65_536 # 65 thousand bytes blocks
     :erpc.call(sendTo,File,:mkdir_p!,[dest])
     File.stream!(src,chunk_size)
     |> Enum.map(fn chunk ->
