@@ -47,19 +47,29 @@ defmodule Zm
 end
 
 defmodule NodeCentral do
-  def write(dest,chunk) do
+
+  def write_begin(dest) do
     {:ok, file} = File.open(dest, [:append, :binary, :raw])
+    file
+  end
+  def write(file,chunk) do
     IO.binwrite(file, [chunk])
+  end
+
+  def write_end(file) do
     File.close(file)
   end
 
   def transmit(sendTo,src,dest,file) do
     chunk_size = 65_536 # 65 thousand bytes blocks
     :erpc.call(sendTo,File,:mkdir_p!,[dest])
+    file = :erpc.call(sendTo, NodeCentral, :write_begin, [dest<>"/"<>file])
     File.stream!(src,chunk_size)
-    |> Enum.map(fn chunk ->
-        :erpc.call(sendTo, NodeCentral, :write, [dest<>"/"<>file, chunk])
+    |> Stream.each(fn chunk ->
+        :erpc.call(sendTo, NodeCentral, :write, [file, chunk])
       end)
+    |> Stream.run()
+    :erpc.call(sendTo, NodeCentral, :write_end,[file])
   end
   def post(srcFile) do
     # dest = "./temp/#{src}-#{:crypto.hash(:sha256, DateTime.now!("Etc/UTC") |> DateTime.to_string) |> Base.encode16}"
