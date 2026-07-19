@@ -2,15 +2,6 @@ alias NodeCentral, as: CentralApi
 
 defmodule Zm
 	do
-  def groupCheck() do
-    case (Agent.get(:group, & &1)) do
-      nil ->
-        Cli.error("not in a group, please make or join a group")
-        false
-      _ ->
-        true
-    end
-  end
 	def mkpath() do
 		now = DateTime.now!("Etc/UTC") |> DateTime.to_string
 		:crypto.hash(:sha256, now) |> Base.encode16
@@ -30,15 +21,14 @@ defmodule Zm
     "#{tempPath}/#{fileName}"
   end
 
-  def unzip(zipped) do
+  def unzip(zipped,group) do
     # make sure the folder isn't used somehow
-    group = Agent.get(:group,& &1)
     :zip.unzip(zipped |> String.to_charlist, "./groups/#{group}" |> String.to_charlist)
   end
 
-  def post() do
-    if(groupCheck()) do
-      file = zip(Agent.get(:group,& &1))
+  def post(group\\Agent.get(:group,& &1)) do
+    if(not (group |> is_nil)) do
+      file = zip(group)
       CentralApi.post(file)
       File.rm(file |> Path.dirname)
       # send from temp folder to recipient
@@ -46,13 +36,13 @@ defmodule Zm
     nil
   end
 
-  def fetch() do
-    if(groupCheck()) do
+  def fetch(group\\Agent.get(:group,& &1)) do
+    if(not (group |> is_nil)) do
       case CentralApi.fetch() do
         nil ->
           Cli.error("fetching from central failed")
         file ->
-          unzip(file)
+          unzip(file,group)
           File.rm(file |> Path.dirname)
       end
 

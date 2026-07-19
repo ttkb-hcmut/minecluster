@@ -18,7 +18,7 @@ defmodule Pleb do
   def start() do
     checkForHosts()
     |> then(fn h -> case h do
-      host when not host |> is_nil ->
+      host when not (host |> is_nil) ->
         connectToHost(host)
       nil ->
         Host.start()

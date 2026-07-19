@@ -85,7 +85,6 @@ defmodule Naas do
     true -> Cli.toScreen "Successfully connected to nodes: "; Cli.toScreen Node.list(); true
     false -> Cli.error "failed to connect to node: " <> address; false
     :ignored -> Cli.error("local node is not alive"); :ignored
-    _ -> false
     end
   end
   def getGroupInfo(group) do
@@ -110,7 +109,7 @@ defmodule Naas do
     end
   end
   def connectGroup(group) do
-    Zm.fetch()
+    Zm.fetch(group)
     case getGroupInfo(group) do
     nil -> nil
     info ->
@@ -149,7 +148,7 @@ defmodule Naas do
     g ->
       case getGroupInfo(g) do
       nil -> nil
-      info when not info |> is_nil ->
+      info when not (info |> is_nil) ->
         {_,d} = info
         |> Map.get_and_update("connections", fn l ->
           {l, Node.list
