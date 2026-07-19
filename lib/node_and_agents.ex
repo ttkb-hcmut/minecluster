@@ -3,6 +3,7 @@ defmodule Naas do
     {:ok, _} = Agent.start_link(fn -> true end, name: :interactive_output)
     {:ok, _} = Agent.start_link(fn -> nil end, name: :group)
     {:ok, _} = Agent.start_link(fn -> :online end, name: :role) # :online | :host | :central
+    {:ok, _} = Agent.start_link(fn -> false end, name: :update)
     System.cmd("epmd", ["-daemon"])
     if not File.exists?(".config") do
       File.write(".config", "{}")
@@ -17,19 +18,12 @@ defmodule Naas do
       Cli.toScreen "Imported config to Agent"
       # IO.inspect pid
     end)
-
-
-    # {:ok, _} = Agent.start_link(fn -> central.getfile end, name: :central)
-    # Agent.get(:central, fn c -> c.() end) |> JSON.decode!
-    # File.open("group.config", [:read], fn file ->
-    #   data = IO.read(file, :line)
-    #   {:ok, pid} = Agent.start_link(fn ->  data |> JSON.decode! end, name: :group)
-    #   Cli.toScreen "Imported group to Agent:"
-    #   IO.inspect pid
-    # end)
-
   end
-
+  def setRole(role) do
+    if role in [:online,:host,:central] do
+      Agent.update(:role, fn _ -> role end)
+    end
+  end
   def getConfig(k\\nil) do
     Agent.get(:config, & &1)
     |> then(fn c -> case k do
@@ -91,9 +85,32 @@ defmodule Naas do
     true -> Cli.toScreen "Successfully connected to nodes: "; Cli.toScreen Node.list(); true
     false -> Cli.error "failed to connect to node: " <> address; false
     :ignored -> Cli.error("local node is not alive"); :ignored
+    _ -> false
+    end
+  end
+  def getGroupInfo(group) do
+    if(group not in listGroup()) do
+      Cli.error("no group found with name \'#{group}\'");
+      nil
+    else
+      {:ok,file} = File.open("./groups/#{group}/.config", [:read])
+      data = file
+      |> IO.read(:line)
+      |> JSON.decode!
+      File.close(file)
+      data
+    end
+  end
+  def setGroupInfo(data,group) do
+    if(group not in listGroup()) do
+      Cli.error("no group found with name \'#{group}\'");
+      nil
+    else
+      File.write("./groups/#{group}/.config", data |> JSON.encode!)
     end
   end
   def connectGroup(group) do
+    Zm.fetch()
     case getGroupInfo(group) do
     nil -> nil
     info ->
@@ -105,22 +122,34 @@ defmodule Naas do
       |> List.foldl([], fn ele, acc -> [Task.async(fn -> if(self != ele) do connectNode(ele,c) else false end end)|acc]
       end)
       |> Task.yield_many(on_timeout: :kill_task, timeout: 1000)
+      |> Enum.map(fn {task, res} -> res || Task.shutdown(task, :brutal_kill) end)
+      |> List.foldl([], fn {_,res},acc -> [res|acc]end)
       |> List.foldl(false, fn ele, acc -> ele or acc end)
       if connected do
         Agent.update(:group,fn _ -> group end)
       else
-        Cli.error "connect to group failed"
+        Cli.error "but nobody came. . ."
       end
+      Pleb.start()
     end
     nil
   end
-  def syncGroup() do
+  def reconnect() do
+    if Agent.get(:role, & &1) == :online do
+      group = Agent.get(:group, & &1)
+      disconnectNode()
+      connectNode(group)
+    end
+    nil
+  end
+
+  def syncGroupConnection() do
     case Agent.get(:group, & &1) do
     nil -> Cli.error("not connected to a group")
     g ->
       case getGroupInfo(g) do
       nil -> nil
-      info ->
+      info when not info |> is_nil ->
         {_,d} = info
         |> Map.get_and_update("connections", fn l ->
           {l, Node.list
@@ -128,6 +157,8 @@ defmodule Naas do
             [Task.async( fn -> :erpc.call(ele,fn -> Naas.getGroupInfo(g) |> Map.get("connections",[]) end) end)|acc]
           end)
           |> Task.yield_many(on_timeout: :kill_task, timeout: 1000)
+          |> Enum.map(fn {task, res} -> res || Task.shutdown(task, :brutal_kill) end)
+          |> List.foldl([], fn {_,res},acc -> [res|acc]end)
           |> List.foldl([Node.self() |> Atom.to_string |l], fn ele,acc ->
             ele ++ acc
           end)
@@ -163,12 +194,14 @@ defmodule Naas do
     {_,nil} ->
       Cli.error("can't add anything to no group connected to/no group provided")
     {a , g} ->
-      d = File.open!("./groups/#{group}/.config", [:read])
-      |> IO.read(:line)
-      |> JSON.decode!
-      |> Map.get_and_update("connections", fn l -> ( a ++ l )|> Enum.uniq end)
-      File.write("./groups/#{g}/.config", d |> JSON.encode!)
-      Cli.toScreen d
+      File.open("./groups/#{group}/.config", [:read], fn file ->
+        d = file
+        |> IO.read(:line)
+        |> JSON.decode!
+        |> Map.get_and_update("connections", fn l -> ( a ++ l )|> Enum.uniq end)
+        File.write("./groups/#{g}/.config", d |> JSON.encode!)
+        Cli.toScreen d
+      end)
     end
     nil
   end
@@ -206,16 +239,6 @@ defmodule Naas do
       nil
     end
   end
-  def getGroupInfo(group) do
-    if(group not in listGroup()) do
-      Cli.error("no group found with name \'#{group}\'");
-      nil
-    else
-      File.open!("./groups/#{group}/.config", [:read])
-      |> IO.read(:line)
-      |> JSON.decode!
-    end
-  end
   def groupStatus() do
     case Agent.get(:group, & &1) do
     nil -> Cli.toScreen "Not currently in a group"
@@ -227,7 +250,7 @@ defmodule Naas do
     nil
   end
   def networkInfo() do
-    {hosts,plebs} = Node.list() |> List.foldl({[],[],[]}, fn ele,{h,p} ->
+    {hosts,plebs} = Node.list() |> List.foldl({[],[]}, fn ele,{h,p} ->
       case(:erpc.call(ele, fn -> Agent.get(:role, & &1) end)) do
         :host -> {[ele|h], p}
         _ -> {h, [ele|p]}
@@ -239,6 +262,7 @@ defmodule Naas do
     Cli.toScreen(plebs |> List.foldl("CONNECTED:", fn ele,acc ->
       acc <> "\n" <> (ele|> Atom.to_string)
     end))
+    {hosts,plebs}
   end
   def disconnectNode() do
     stopNode()

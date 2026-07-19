@@ -43,6 +43,7 @@ defmodule Zm
       File.rm(file |> Path.dirname)
       # send from temp folder to recipient
     end
+    nil
   end
 
   def fetch() do
@@ -63,24 +64,32 @@ defmodule Zm
 end
 
 defmodule NodeCentral do
-  def getCentralNode do
+  def becomeCentral() do
+    case Agent.get(:group, & &1) do
+      nil -> nil
+      _ ->
+        Naas.setRole(:central)
+        Zm.post()
+        nil
+    end
+  end
+  def getCentralNode() do
     self = Node.self()
-    list = Node.list()
+    list = [self|Node.list()]
     |> List.foldl([], fn ele, acc ->
       [Task.async(fn ->
-        if(self != ele) do
-          :erpc.call(ele, fn -> {ele, Agent.get(:role, & &1) == :central} end)
-        else
-          {ele,false}
-      end end)|acc]
+        :erpc.call(ele, fn -> {ele, Agent.get(:role, & &1) == :central} end)
+      end)|acc]
     end)
     |> Task.yield_many(on_timeout: :kill_task, timeout: 1000)
+    |> Enum.map(fn {task, res} -> res || Task.shutdown(task, :brutal_kill) end)
+    |> List.foldl([], fn {_,res},acc -> [res|acc]end)
     |> Enum.filter(fn {_,v} -> v end)
 
     if (list |> length == 0) do
       nil
     else
-      [central|_] = list
+      [{central,true}|_] = list
       central
     end
   end
@@ -104,6 +113,7 @@ defmodule NodeCentral do
     nil ->
       Cli.error("no central node found")
     central ->
+      IO.inspect central
       centralFileName = "#{:erpc.call(central, fn -> Agent.get(:group, & &1) end)}.zip"
       filePath = "./central/#{centralFileName}"
       transmit(central,srcFile,filePath)

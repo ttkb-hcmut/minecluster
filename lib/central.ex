@@ -32,7 +32,6 @@ defmodule Central do
       _ -> { :ok , nil } # do some connection stuff here
     end
   end
-
   def fetchData(conn\\nil) do
     case conn do
       %Placeholder{} ->

@@ -198,7 +198,7 @@ defmodule Cli do
       },
       list: %{
         i: "List all nodes connected to",
-        a: fn _ -> Naas.networkInfo() end
+        a: fn _ -> Naas.networkInfo();nil end
       },
       group: %{
         i: "List all addresses stored in group",
@@ -242,7 +242,7 @@ defmodule Cli do
             },
           sync: %{
             i: "Collects all other connections from other nodes in this group",
-            a: fn _ -> Naas.syncGroup() end
+            a: fn _ -> Naas.syncGroupConnection() end
           },
         },
       },

@@ -1,24 +1,27 @@
 defmodule Pleb do
-  def registerAsOnline(conn, self) do
-    conn |> Central.setStatus(self,:online)
-    conn
-  end
   def connectToHost(address) do
-    IO.puts "Connected to Host: " <> address
+    # make minecraft connect to this server somehow
+    Node.spawn(address, fn -> Naas.addGroup() end)
+    # async connect mc to host
+    Cli.toScreen "Connected to Host: " <> (address |> Atom.to_string)
+    nil
   end
-  def checkForHosts(conn, self) do
-    {:ok , cl} = conn |> Central.getClientList
-    case (cl |> Map.filter(fn {_,v} -> v == :host end)|> Map.keys |> Enum.count) do
-      0 ->
-        conn |> Host.start(self)
-      _ ->
-        connectToHost(cl |> Map.keys |> List.first)
+  def checkForHosts() do
+    {hosts,_} = Naas.networkInfo()
+    if(hosts |> length > 0) do
+      [host|_] = hosts
+      host
+    else
+      nil
     end
-    conn
   end
-  def start(conn,self) do
-    conn
-    |> registerAsOnline(self)
-    |> checkForHosts(self)
+  def start() do
+    checkForHosts()
+    |> then(fn h -> case h do
+      host when not host |> is_nil ->
+        connectToHost(host)
+      nil ->
+        Host.start()
+    end end)
   end
 end
