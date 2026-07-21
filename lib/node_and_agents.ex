@@ -234,7 +234,6 @@ defmodule Naas do
       |> JSON.decode!
       |> Map.get_and_update("connections", fn l -> {nil, ( a ++ l )|> Enum.uniq} end)
       File.close(file)
-      IO.inspect d
       File.write("./groups/#{g}/.config", d |> JSON.encode!)
       Cli.toScreen d |> Map.get("connections","none")
     end

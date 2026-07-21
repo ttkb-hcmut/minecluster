@@ -16,21 +16,21 @@ defmodule Command do
 
     Cli.toScreen "i: " <> info
     Cli.toScreen "c: " <> (
-        children
-        |> List.foldl("", fn ele, acc ->
-          acc <> " | " <> (
-            case ele do
-              :"" -> "<input>"
-              _ -> ele |> Atom.to_string
-            end
-          )
-        end)
-      )
+      children
+      |> List.foldl("", fn ele, acc ->
+        acc <> " | " <> (
+          case ele do
+          :"" -> "<input>"
+          _ -> ele |> Atom.to_string
+          end
+        )
+      end)
+    )
     for c <- children do
-      command = (case c do
+      command = case c do
         :"" ->  "<input>"
         _ ->  (c |> Atom.to_string)
-      end)
+      end
       Cli.toScreen "\n?> " <> (h |> List.foldl("",fn ele,acc-> ele <> " " <> acc end)) <> IO.ANSI.blue() <> IO.ANSI.underline() <> command <> IO.ANSI.reset()
       help([command|h],ctx |> Map.get(:c,%{}) |> Map.get(c,%{}))
     end
@@ -70,8 +70,8 @@ defmodule Command do
     extra.()
     input = IO.gets(
       case (Node.self()) do
-        :nonode@nohost -> ""
-        s -> s |> Atom.to_string()
+      :nonode@nohost -> ""
+      s -> s |> Atom.to_string()
       end <> "> ")
     {ctx,i ++ ( input |> String.trim |> String.split),c}
   end
@@ -101,17 +101,33 @@ defmodule Cli do
   def toScreen(input) do
     case Agent.get(:interactive_output, & &1) do
     true ->
-      IO.puts input
+      try do
+        IO.puts input
+      rescue
+        _ -> nil
+      end
     false ->
+      try do
       IO.puts %{type: "log", data: input} |> JSON.encode!
+      rescue
+        _ -> nil
+      end
     end
   end
   def error(input) do
     case Agent.get(:interactive_output, & &1) do
     true ->
-      IO.puts "#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} #{input}"
+      try do
+        IO.puts "#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} #{input}"
+      rescue
+        _ -> nil
+      end
     false ->
-      IO.puts %{type: "error", data: input} |> JSON.encode!
+      try do
+        IO.puts %{type: "error", data: input} |> JSON.encode!
+      rescue
+        _ -> nil
+      end
     end
   end
   # k: %{i: nil, a: nil, c:%{}}
@@ -277,27 +293,27 @@ defmodule Cli do
   end
   def tree_traverser({ctx,input_list,cached}) do
     case input_list do
-      [] ->
-        (ctx |> Map.get(:a)).({ctx,input_list,cached})
-      [head | tail] -> (
-        cList = ctx |> Map.get(:c, %{}) |> Map.keys |> Enum.map(fn k -> k |> Atom.to_string end)
-        case {head == "help", head in cList, "" in cList} do
-          {true,_,_} -> Command.help([],ctx); nil
-          {_,true, _} ->
-            { ctx |> Map.get(:c, %{}) |> Map.get(head |> String.to_existing_atom, %{}),
-              tail,
-              cached
-            }
-          {_,false, true} ->
-            { ctx |> Map.get(:c, %{}) |> Map.get(:"",%{}),
-              tail,
-              [head|cached]
-            }
-          {_,false, false} ->
-            Command.badArg(ctx, head)
-            start()
-        end
-        )
+    [] ->
+      (ctx |> Map.get(:a)).({ctx,input_list,cached})
+    [head | tail] -> (
+      cList = ctx |> Map.get(:c, %{}) |> Map.keys |> Enum.map(fn k -> k |> Atom.to_string end)
+      case {head == "help", head in cList, "" in cList} do
+      {true,_,_} -> Command.help([],ctx); nil
+      {_,true, _} ->
+        { ctx |> Map.get(:c, %{}) |> Map.get(head |> String.to_existing_atom, %{}),
+          tail,
+          cached
+        }
+      {_,false, true} ->
+        { ctx |> Map.get(:c, %{}) |> Map.get(:"",%{}),
+          tail,
+          [head|cached]
+        }
+      {_,false, false} ->
+        Command.badArg(ctx, head)
+        start()
+      end
+      )
     end
     |> then(fn x -> case x do
     0 -> Cli.toScreen "\n\n\nGoodnight! ==================="
