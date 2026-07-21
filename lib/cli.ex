@@ -239,10 +239,28 @@ defmodule Cli do
                 }
               }
             }
-            },
+          },
           sync: %{
             i: "Collects all other connections from other nodes in this group",
             a: fn _ -> Naas.syncGroupConnection() end
+          },
+          role: %{
+            i: "Changes your current role in the group",
+            a: fn a -> Command.prompt(a) end,
+            c: %{
+              online: %{
+                i: "Collects all other connections from other nodes in this group",
+                a: fn _ -> Naas.setRole(:online) end
+              },
+              host: %{
+                i: "Collects all other connections from other nodes in this group",
+                a: fn _ -> Naas.setRole(:host) end
+              },
+              central: %{
+                i: "Collects all other connections from other nodes in this group",
+                a: fn _ -> Naas.setRole(:central) end
+              },
+            }
           },
         },
       },

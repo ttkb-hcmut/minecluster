@@ -4,6 +4,7 @@ defmodule Naas do
     {:ok, _} = Agent.start_link(fn -> nil end, name: :group)
     {:ok, _} = Agent.start_link(fn -> :online end, name: :role) # :online | :host | :central
     {:ok, _} = Agent.start_link(fn -> false end, name: :update)
+    {:ok, _} = Agent.start_link(fn -> nil end, name: :server)
     System.cmd("epmd", ["-daemon"])
     if not File.exists?(".config") do
       File.write(".config", "{}")
@@ -20,8 +21,40 @@ defmodule Naas do
     end)
   end
   def setRole(role) do
-    if role in [:online,:host,:central] do
-      Agent.update(:role, fn _ -> role end)
+
+    if not(Agent.get(:group,& &1) |> is_nil) do
+      case {Agent.get(:role,& &1),role} do
+      {:host,r} when r != :host ->
+        Host.stopServer
+        nil
+      _ ->
+        nil
+      end
+
+      case {Agent.get(:role,& &1),role} do
+      {_,:host} ->
+        Agent.update(:role, fn _ -> :host end)
+        Host.start()
+        nil
+      {_,:online}->
+        Agent.update(:role, fn _ -> :online end)
+        Pleb.start()
+        nil
+      {_,:central} ->
+        Agent.update(:role, fn _ -> :central end)
+        NodeCentral.centralStart()
+        nil
+      {a,b} when a == b ->
+        Cli.toScreen("setRole trying to set your role to the same role: {#{a|>Atom.to_string},#{b|>Atom.to_string}}")
+        nil
+      {a,b} ->
+        Cli.error("no setRole pattern matched for {#{a|>Atom.to_string},#{b|>Atom.to_string}}")
+        nil
+      end
+
+    else
+      Cli.error "not currently in a group yet"
+      nil
     end
   end
   def getConfig(k\\nil) do
@@ -82,7 +115,10 @@ defmodule Naas do
     end
     # address = if(address |> String.contains?(".")) do address else address<>".local" end
     case Node.connect(address |> String.to_atom) do
-    true -> Cli.toScreen "Successfully connected to nodes: "; Cli.toScreen Node.list(); true
+    true ->
+      Cli.toScreen "Successfully connected to nodes:";
+      Node.list() |> Enum.map(fn e -> Cli.toScreen(e |> Atom.to_string) end);
+      true
     false -> Cli.error "failed to connect to node: " <> address; false
     :ignored -> Cli.error("local node is not alive"); :ignored
     end
@@ -120,16 +156,15 @@ defmodule Naas do
       connected = l
       |> List.foldl([], fn ele, acc -> [Task.async(fn -> if(self != ele) do connectNode(ele,c) else false end end)|acc]
       end)
-      |> Task.yield_many(on_timeout: :kill_task, timeout: 1000)
-      |> Enum.map(fn {task, res} -> res || Task.shutdown(task, :brutal_kill) end)
-      |> List.foldl([], fn {_,res},acc -> [res|acc]end)
-      |> List.foldl(false, fn ele, acc -> ele or acc end)
-      if connected do
-        Agent.update(:group,fn _ -> group end)
-      else
-        Cli.error "but nobody came. . ."
+      |> Task.yield_many(on_timeout: :kill_task, timeout: 5000)
+      # |> Enum.map(fn {task, res} -> res || Task.shutdown(task, :brutal_kill) end)
+      |> List.foldl([], fn {_,{_,ele}},acc -> [ele|acc] end)
+      |> List.foldl(false, fn ele, acc -> (ele == true) or acc end)
+      Agent.update(:group,fn _ -> group end)
+      if not connected do
+        Cli.toScreen "but nobody came. . ."
       end
-      Pleb.start()
+      setRole(:online)
     end
     nil
   end
@@ -172,7 +207,7 @@ defmodule Naas do
   def addGroup(node\\nil, group\\nil) do
     addition = case {Node.list(), node} do
       { [], nil} -> nil
-      { l , nil} -> l
+      { l , nil} -> l |> Enum.map(fn e -> e |> Atom.to_string end)
       { _ , n  } -> [n]
     end
     destination = case {Agent.get(:group, & &1), group} do
@@ -193,14 +228,15 @@ defmodule Naas do
     {_,nil} ->
       Cli.error("can't add anything to no group connected to/no group provided")
     {a , g} ->
-      File.open("./groups/#{group}/.config", [:read], fn file ->
-        d = file
-        |> IO.read(:line)
-        |> JSON.decode!
-        |> Map.get_and_update("connections", fn l -> ( a ++ l )|> Enum.uniq end)
-        File.write("./groups/#{g}/.config", d |> JSON.encode!)
-        Cli.toScreen d
-      end)
+      {:ok, file} = File.open("./groups/#{g}/.config", [:read])
+      {_,d} = file
+      |> IO.read(:line)
+      |> JSON.decode!
+      |> Map.get_and_update("connections", fn l -> {nil, ( a ++ l )|> Enum.uniq} end)
+      File.close(file)
+      IO.inspect d
+      File.write("./groups/#{g}/.config", d |> JSON.encode!)
+      Cli.toScreen d |> Map.get("connections","none")
     end
     nil
   end
@@ -243,14 +279,21 @@ defmodule Naas do
     nil -> Cli.toScreen "Not currently in a group"
     a ->
       Cli.toScreen "In group: " <> a;
-      Cli.toScreen getGroupInfo(a);
+      Cli.toScreen getGroupInfo(a) |> Map.get("connections");
+      Cli.toScreen getGroupInfo(a) |> Map.get("cookie");
       networkInfo();
     end
     nil
   end
+  def broadcastMessage(message) do
+    Node.list
+    |> Enum.map(fn e -> Node.spawn(e, fn -> Cli.toScreen(message) end) end)
+    nil
+  end
   def networkInfo() do
     {hosts,plebs} = Node.list() |> List.foldl({[],[]}, fn ele,{h,p} ->
-      case(:erpc.call(ele, fn -> Agent.get(:role, & &1) end)) do
+      Cli.toScreen ele |> Atom.to_string
+      case(:erpc.call(ele, Agent, :get,[:role, fn e -> e end] )) do
         :host -> {[ele|h], p}
         _ -> {h, [ele|p]}
       end
@@ -264,11 +307,14 @@ defmodule Naas do
     {hosts,plebs}
   end
   def disconnectNode() do
+    self = Node.self() |> Atom.to_string
     stopNode()
-    startNode()
+    startNode(self)
     nil
   end
   def stopNode() do
+    setRole(:online)
+
     Agent.update(:group, fn _ -> nil end)
     Node.stop()
     Cli.toScreen("Stopped node")

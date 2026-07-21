@@ -1,5 +1,3 @@
-alias NodeCentral, as: CentralApi
-
 defmodule Zm
 	do
 	def mkpath() do
@@ -7,6 +5,23 @@ defmodule Zm
 		:crypto.hash(:sha256, now) |> Base.encode16
 	end
 
+  def getCentralApi(group) do
+    central = Naas.getGroupInfo(group)
+    |> Map.get("central", %{})
+    central
+    |> Map.keys
+    |> then(fn x ->
+      {
+        case x do
+          ["node"|_] -> NodeCentral
+          ["firebase"|_] -> Cli.error("firebase api not implemented")
+            CentralInterface
+          _ -> CentralInterface
+        end,
+        central |> Map.get(x)
+      }
+    end)
+  end
   def zip(name) do
     tempPath = "./temp/#{name}-#{mkpath()}"
     fileName = "#{name}.zip"
@@ -29,8 +44,9 @@ defmodule Zm
   def post(group\\Agent.get(:group,& &1)) do
     if(not (group |> is_nil)) do
       file = zip(group)
-      CentralApi.post(file)
-      File.rm(file |> Path.dirname)
+      {central, _} = getCentralApi(group)
+      central.post(file)
+      File.rm_rf!(file |> Path.dirname)
       # send from temp folder to recipient
     end
     nil
@@ -38,12 +54,13 @@ defmodule Zm
 
   def fetch(group\\Agent.get(:group,& &1)) do
     if(not (group |> is_nil)) do
-      case CentralApi.fetch() do
-        nil ->
-          Cli.error("fetching from central failed")
-        file ->
-          unzip(file,group)
-          File.rm(file |> Path.dirname)
+      {central, _} = getCentralApi(group)
+      case central.fetch() do
+      nil ->
+        Cli.error("fetching from central failed")
+      file ->
+        unzip(file,group)
+        File.rm_rf!(file |> Path.dirname)
       end
 
       # download from address to temp
@@ -53,13 +70,31 @@ defmodule Zm
   end
 end
 
+defmodule CentralInterface do
+  def post(_) do
+    Cli.error("post api unimplemented")
+    nil
+  end
+  def fetch() do
+    Cli.error("fetch api unimplemented")
+    nil
+  end
+end
+
 defmodule NodeCentral do
-  def becomeCentral() do
+  def centralStart() do
     case Agent.get(:group, & &1) do
-      nil -> nil
-      _ ->
-        Naas.setRole(:central)
-        Zm.post()
+      nil ->
+        Cli.error "how the hell did you reach this error message?!?"
+        Naas.setRole(:online)
+        nil
+      g ->
+        Naas.getGroupInfo(g)
+        |> Map.put("central", %{node: (Node.self |> Atom.to_string) })
+        |> Naas.setGroupInfo(g)
+        if not File.exists?("./central/#{g}") do
+          Zm.post(g)
+        end
         nil
     end
   end
@@ -103,7 +138,6 @@ defmodule NodeCentral do
     nil ->
       Cli.error("no central node found")
     central ->
-      IO.inspect central
       centralFileName = "#{:erpc.call(central, fn -> Agent.get(:group, & &1) end)}.zip"
       filePath = "./central/#{centralFileName}"
       transmit(central,srcFile,filePath)

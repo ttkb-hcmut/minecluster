@@ -1,0 +1,1 @@
+iex.bat --erl "-kernel shell_history enabled" -S mix
