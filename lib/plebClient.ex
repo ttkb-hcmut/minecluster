@@ -21,7 +21,7 @@ defmodule Pleb do
       host when not (host |> is_nil) ->
         connectToHost(host)
       nil ->
-        Host.start()
+        Naas.setRole(:host)
     end end)
   end
 end
