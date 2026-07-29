@@ -1,9 +1,10 @@
 defmodule Pleb do
   def connectToHost(address) do
     # make minecraft connect to this server somehow
-    Node.spawn(address, fn -> Naas.addGroup() end)
+    :erpc.cast(address, fn -> Naas.addGroup() end)
     # async connect mc to host
-    Cli.toScreen "Connected to Host: " <> (address |> Atom.to_string)
+    "Connected to Host: " <> (address |> Atom.to_string)
+    |> Cli.toScreen
     nil
   end
   def checkForHosts() do

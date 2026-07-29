@@ -278,6 +278,38 @@ defmodule Cli do
               },
             }
           },
+          server: %{
+            i: "Installs a server to this group",
+            a: fn a -> Command.prompt(a) end,
+            c: %{
+              java: %{
+                i: "Install a Java server",
+                a: fn a -> Command.prompt(a, fn ->
+                  Cli.toScreen "Available versions:"
+                  Cli.toScreen Mj.availableVersions("java")|> Map.keys()
+                end) end,
+                c: %{
+                  "": %{
+                    i: "Version number",
+                    a: fn {_,_,[v|_]} -> Mj.withInstall("java",v);nil end
+                  }
+                }
+              },
+              bedrock: %{
+                i: "Install a Bedrock server",
+                a: fn a -> Command.prompt(a, fn ->
+                  Cli.toScreen "Available versions:"
+                  Cli.toScreen Mj.availableVersions("bedrock")
+                end) end,
+                c: %{
+                  "": %{
+                    i: "Version number",
+                    a: fn {_,_,[v|_]} ->  Mj.withInstall("bedrock",v);nil end
+                  }
+                }
+              },
+            }
+          },
         },
       },
       disconnect: %{

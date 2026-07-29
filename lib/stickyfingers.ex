@@ -27,18 +27,18 @@ defmodule Zm
     fileName = "#{name}.zip"
     File.mkdir_p tempPath
     File.cp_r("./groups/#{name}", tempPath)
-    files = File.ls!("./groups/#{name}") |> Enum.map(fn f -> String.to_charlist(f) end)
+    files = File.ls!(tempPath) |> Enum.map(fn f -> String.to_charlist(f) end)
     {:ok,_} = :zip.create(
       "#{tempPath}/#{fileName}"|> String.to_charlist,
       files,
-      cwd: "./groups/#{name}" |> String.to_charlist
+      cwd: "#{tempPath}" |> String.to_charlist
     )
     "#{tempPath}/#{fileName}"
   end
 
   def unzip(zipped,group) do
     # make sure the folder isn't used somehow
-    :zip.unzip(zipped |> String.to_charlist, "./groups/#{group}" |> String.to_charlist)
+    :zip.unzip(~c"#{zipped}",[cwd: ~c"./groups/#{group}/"])
   end
 
   def post(group\\Agent.get(:group,& &1)) do

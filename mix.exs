@@ -10,6 +10,9 @@ defmodule Minecluster.Mix do
 	defp deps, do: [
 	]
 
-	def application, do: [ mod: {App, []} ]
+	def application, do: [
+    mod: {App, []},
+    extra_applications: [:inets, :ssl]
+  ]
 
 end
