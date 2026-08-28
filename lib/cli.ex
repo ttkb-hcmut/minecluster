@@ -1,4 +1,32 @@
+defmodule ArgPassing do
+  defexception message: "bad argument passing"
+end
 defmodule Command do
+  @doc"""
+  kinda like real cli argument passing
+  """
+  def arbitraryArg({ctx,inputs,_}) do
+    inputParser = fn argsList ->
+      {_,res} = inputs
+      |> Enum.reverse
+      |> List.foldl({[],%{}}, fn ele,{hold,ret} ->
+        if ele not in argsList do
+          {[ele|hold],ret}
+        else
+          Cli.toScreen("Parsed: #{ele} => [#{Enum.join(hold,", ")}]")
+          {[],ret|> Map.put_new(ele,hold)}
+        end
+      end)
+      res
+    end
+
+    callback = ctx |> Map.get(:a, fn _ -> Cli.error "no action found" end)
+    ctx
+    |> Map.get(:p, %{}) # arg options
+    |> Map.keys
+    |> inputParser.()
+    |> callback.()
+  end
   @doc"""
   turns function output to be Json for non interactable mode
   """
@@ -12,19 +40,23 @@ defmodule Command do
   """
   def help(h,ctx) do
     info = ctx |> Map.get(:i, "NO INFORMATION")
-    children = ctx |> Map.get(:c,%{}) |> Map.keys
-
+    children = ctx |> Map.get(:c, %{}) |> Map.keys
+    params   = ctx |> Map.get(:p, %{})
     Cli.toScreen "i: " <> info
     Cli.toScreen "c: " <> (
       children
-      |> List.foldl("", fn ele, acc ->
-        acc <> " | " <> (
-          case ele do
-          :"" -> "<input>"
-          _ -> ele |> Atom.to_string
-          end
-        )
+      |> Enum.map(fn ele ->
+        case ele do
+        :"" -> "<input>"
+        _ -> ele |> Atom.to_string
+        end
       end)
+      |> Enum.join(" | ")
+    )
+    Cli.toScreen "p: " <> (
+      params
+      |> Map.keys
+      |> Enum.join(" | ")
     )
     for c <- children do
       command = case c do
@@ -33,6 +65,9 @@ defmodule Command do
       end
       Cli.toScreen "\n?> " <> (h |> List.foldl("",fn ele,acc-> ele <> " " <> acc end)) <> IO.ANSI.blue() <> IO.ANSI.underline() <> command <> IO.ANSI.reset()
       help([command|h],ctx |> Map.get(:c,%{}) |> Map.get(c,%{}))
+    end
+    for p <- (params |> Map.keys) do
+      Cli.toScreen "   " <> IO.ANSI.green() <> IO.ANSI.underline() <> p <> IO.ANSI.reset() <> " " <> Map.get(params,p,"")
     end
   end
   @doc"""
@@ -71,10 +106,15 @@ defmodule Command do
     input = IO.gets(
       case (Node.self()) do
       :nonode@nohost -> ""
-      s -> s |> Atom.to_string()
+      s ->
+        (s |> Atom.to_string()) <> case Agent.get(:group, & &1) do
+        nil -> ""
+        g -> " - " <> g
+        end
       end <> "> ")
     {ctx,i ++ ( input |> String.trim |> String.split),c}
   end
+  @spec badArg(map(), any()) :: nil | :ok
   @doc """
   Inform the user of the bad arg, expected args, and returns to Cli start
   """
@@ -171,19 +211,14 @@ defmodule Cli do
         }
       },
       start:  %{
-        i: "Starts Node address and cookie defined in config, or with the arg provided after it",
-        a: fn _ -> Naas.startNode() end,
-        c: %{
-          "": %{
-            i: "Captured address for Node starting",
-            a: fn {_,_,[a|_]} -> Naas.startNode(a) end,
-            c: %{
-              "": %{
-                i: "Captured cookie for Node starting",
-                a: fn {_,_,[c,a|_]} -> Naas.startNode(a,c) end
-              }
-            }
-          }
+        i: "Starts Node address and cookie defined in config, or with the arg provided",
+        a: fn opts -> Naas.startNode(
+          opts |> Map.get("-a",[]) |> List.first,
+          opts |> Map.get("-c",[]) |> List.first)
+        end,
+        p: %{
+          "-a" => "Address to start as, defaults to config default if not provided '-a exampleAddress@127.0.0.1'",
+          "-c" => "Cookie to start with, defaults to config default if not provided '-c superSecretCookie'"
         }
       },
       connect:  %{
@@ -221,18 +256,12 @@ defmodule Cli do
         a: fn _ -> Cli.toScreen "\n Available groups:"; Cli.toScreen Naas.listGroup() ;nil end,
         c: %{
           make: %{
-            i: "Create a new group with provided name and default cookie or provided arg",
+            i: "Add or create a new group with a name. Copies data from the group you are in but not added yet",
             a: fn a -> Command.prompt(a) end,
             c: %{
               "": %{
                 i: "Name of group",
                 a: fn {_,_,[n|_]} -> Naas.makeGroup(n) end,
-                c: %{
-                  "": %{
-                    i: "Cookie of group",
-                    a: fn {_,_,[c,n|_]} -> Naas.makeGroup(n,c) end
-                  },
-                }
               },
             }
           },
@@ -286,7 +315,7 @@ defmodule Cli do
                 i: "Install a Java server",
                 a: fn a -> Command.prompt(a, fn ->
                   Cli.toScreen "Available versions:"
-                  Cli.toScreen Mj.availableVersions("java")|> Map.keys()
+                  Cli.toScreen Mj.availableVersions("java")|> Map.keys() |> Enum.join("\n")
                 end) end,
                 c: %{
                   "": %{
@@ -299,7 +328,7 @@ defmodule Cli do
                 i: "Install a Bedrock server",
                 a: fn a -> Command.prompt(a, fn ->
                   Cli.toScreen "Available versions:"
-                  Cli.toScreen Mj.availableVersions("bedrock")
+                  Cli.toScreen Mj.availableVersions("bedrock") |> Enum.join("\n")
                 end) end,
                 c: %{
                   "": %{
@@ -324,13 +353,18 @@ defmodule Cli do
   }
   end
   def tree_traverser({ctx,input_list,cached}) do
-    case input_list do
-    [] ->
+    cList = ctx |> Map.get(:c, %{}) |> Map.keys |> Enum.map(fn k -> k |> Atom.to_string end)
+    pList = ctx |> Map.get(:p, %{})
+    case {input_list, pList == %{}} do
+    {_,false} ->
+      Command.arbitraryArg({ctx,input_list,cached})
+      nil
+    {[],true} ->
       (ctx |> Map.get(:a)).({ctx,input_list,cached})
-    [head | tail] -> (
-      cList = ctx |> Map.get(:c, %{}) |> Map.keys |> Enum.map(fn k -> k |> Atom.to_string end)
+    {[head | tail],_} -> (
       case {head == "help", head in cList, "" in cList} do
-      {true,_,_} -> Command.help([],ctx); nil
+      {true,_,_} ->
+        Command.help([],ctx); nil
       {_,true, _} ->
         { ctx |> Map.get(:c, %{}) |> Map.get(head |> String.to_existing_atom, %{}),
           tail,
@@ -348,7 +382,7 @@ defmodule Cli do
       )
     end
     |> then(fn x -> case x do
-    0 -> Cli.toScreen "\n\n\nGoodnight! ==================="
+    0 -> Cli.toScreen "\n\n\nGoodnight! ==================="; 0
     nil -> {ctree(),[],[]} |> tree_traverser
     _ -> x |> tree_traverser
     end end)

@@ -4,7 +4,8 @@ defmodule Naas do
     {:ok, _} = Agent.start_link(fn -> nil end, name: :group)
     {:ok, _} = Agent.start_link(fn -> :online end, name: :role) # :online | :host | :central
     {:ok, _} = Agent.start_link(fn -> nil end, name: :server)
-    System.cmd("epmd", ["-daemon"])
+    Task.start_link(fn -> System.cmd("epmd", []) end)
+
     if not File.exists?(".config") do
       File.write(".config", "{}")
     end
@@ -116,15 +117,22 @@ defmodule Naas do
     case Node.connect(address |> String.to_atom) do
     true ->
       Cli.toScreen "Successfully connected to nodes:";
-      Node.list() |> Enum.map(fn e -> Cli.toScreen(e |> Atom.to_string) end);
+      Node.list() |> Enum.map(fn ele -> ele |> Atom.to_string end) |> Enum.join(", ") |> Cli.toScreen;
       true
     false -> Cli.error "failed to connect to node: " <> address; false
     :ignored -> Cli.error("local node is not alive"); :ignored
     end
   end
-  def getGroupInfo(group) do
-    if(group not in listGroup()) do
-      Cli.error("no group found with name \'#{group}\'");
+  def getGroupInfo(group, cookie\\nil) do
+    name = case cookie do
+      nil ->
+        group
+      _ ->
+        listGroup(:map)
+        |> Map.get(cookie, nil)
+    end
+    if(name not in listGroup()) do
+      Cli.error("no group found with name");
       nil
     else
       {:ok,file} = File.open("./groups/#{group}/.config", [:read])
@@ -143,39 +151,51 @@ defmodule Naas do
       File.write("./groups/#{group}/.config", data |> JSON.encode!)
     end
   end
+  def inParallel(list,fun) do
+    list
+    |> List.foldl([], fn ele, acc -> [Task.async(fn -> fun.(ele) end)|acc]
+    end)
+    |> Task.yield_many(on_timeout: :kill_task, timeout: 5000)
+    |> List.foldl([], fn {_,{_,ele}},acc -> [ele|acc] end)
+  end
+  def cookieIs(c\\nil) do
+    cc = Naas.getGroupInfo(Agent.get(:group, & &1))
+    case {cc,c} do
+      {nil,nil} -> nil
+      {_,nil} -> cc |> Map.get("cookie", nil);
+      {nil,_} -> false
+      {_,_} -> cc == c
+    end
+  end
   def connectGroup(group) do
-    Zm.fetch(group)
     case getGroupInfo(group) do
     nil -> nil
     info ->
+      Agent.update(:group,fn _ -> group end)
+      Zm.fetch(group)
       l = info|> Map.get("connections",[])
       c = info|> Map.get("cookie",nil)
-      startNode(nil,c)
-      self = (Node.self() |> Atom.to_string)
-      connected = l
-      |> List.foldl([], fn ele, acc -> [Task.async(fn -> if(self != ele) do connectNode(ele,c) else false end end)|acc]
+      self = Node.self |> Atom.to_string
+      l |> Naas.inParallel(fn ele ->
+        if( self != ele
+        and not is_nil(c)
+        and :erpc.call(ele|> String.to_atom, fn -> Naas.cookieIs c end)
+        ) do
+          connectNode(ele,c)
+        else false end
       end)
-      |> Task.yield_many(on_timeout: :kill_task, timeout: 5000)
-      # |> Enum.map(fn {task, res} -> res || Task.shutdown(task, :brutal_kill) end)
-      |> List.foldl([], fn {_,{_,ele}},acc -> [ele|acc] end)
-      |> List.foldl(false, fn ele, acc -> (ele == true) or acc end)
-      Agent.update(:group,fn _ -> group end)
-      if not connected do
-        Cli.toScreen "but nobody came. . ."
-      end
-      broadcastMessage("Hi from: #{Node.self |> Atom.to_string}")
       setRole(:online)
     end
     nil
   end
-  def reconnect() do
-    if Agent.get(:role, & &1) == :online do
-      group = Agent.get(:group, & &1)
-      disconnectNode()
-      connectNode(group)
-    end
-    nil
-  end
+  # def reconnect() do
+  #   if Agent.get(:role, & &1) == :online do
+  #     group = Agent.get(:group, & &1)
+  #     disconnectNode()
+  #     connectGroup(group)
+  #   end
+  #   nil
+  # end
 
   def syncGroupConnection() do
     case Agent.get(:group, & &1) do
@@ -184,15 +204,13 @@ defmodule Naas do
       case getGroupInfo(g) do
       nil -> nil
       info when not (info |> is_nil) ->
+        c = info |> Map.get("cookie", nil)
         {_,d} = info
         |> Map.get_and_update("connections", fn l ->
           {l, Node.list
-          |> List.foldl([], fn ele,acc ->
-            [Task.async( fn -> :erpc.call(ele,fn -> Naas.getGroupInfo(g) |> Map.get("connections",[]) end) end)|acc]
+          |> Naas.inParallel(fn ele ->
+            :erpc.call(ele,fn -> Naas.getGroupInfo(nil, c) |> Map.get("connections",[]) end)
           end)
-          |> Task.yield_many(on_timeout: :kill_task, timeout: 1000)
-          |> Enum.map(fn {task, res} -> res || Task.shutdown(task, :brutal_kill) end)
-          |> List.foldl([], fn {_,res},acc -> [res|acc]end)
           |> List.foldl([Node.self() |> Atom.to_string |l], fn ele,acc ->
             ele ++ acc
           end)
@@ -239,37 +257,93 @@ defmodule Naas do
     end
     nil
   end
-  def listGroup() do
-    case File.ls("./groups") do
-      {:ok, files} ->
-        files
-      {:error, reason} ->
-        Cli.error("failed to read ./groups directory: #{reason}");
-        Cli.toScreen("Making ./groups directory");
-        File.mkdir_p("./groups");
-        []
+  def listGroup(mode \\ :name) do
+    case {File.ls("./groups"),mode} do
+    {{:ok, folders},:name} ->
+      folders
+    {{:ok, folders},:map} ->
+      folders
+      |> Naas.inParallel(fn ele ->
+        File.open("./groups/#{ele}/.config", [:read], fn file ->
+          data = IO.read(file, :line) |> JSON.decode! |> Map.get("cookie", nil)
+          {ele,data}
+        end)
+      end)
+      |> Enum.filter(fn {_,data} ->
+        not is_nil(data)
+      end)
+      |> List.foldl(%{}, fn {group,cookie},acc ->
+        acc |> Map.put_new(cookie,group)
+      end)
+    {{:error, reason},_} ->
+      Cli.error("failed to read ./groups directory: #{reason}");
+      Cli.toScreen("Making ./groups directory");
+      File.mkdir_p("./groups");
+      Naas.listGroup(mode)
     end
   end
-  def makeGroup(name, cookie\\nil) do
-    if(name in listGroup()) do
+  def secretGen() do
+    DateTime.utc_now(:microsecond, Calendar.ISO)
+    |> DateTime.to_string
+    |> then(fn t -> :crypto.hash(:sha256, t) end)
+    |> Base.encode32
+  end
+  def makeGroup(name) do
+    # blocks reuse of name
+    name = case name in listGroup() do
+    false ->
+      name
+    true ->
+      Cli.error ""
+      nil
+    end
+    data = case {name, is_nil(Agent.get(:group,& &1))} do
+    {nil,_} ->
+      nil
+    {_,false} ->
+      Cli.error "already in a group '#{Agent.get(:group,& &1)}'; please leave before creating a new group"
+      nil
+    {_,true} ->
+      # case you "connected" to a group but hasn't registered it as a group for yourself
+      case (
+        Node.list()
+        |> Naas.inParallel(fn ele ->
+          { ele,
+            :erpc.call(ele, fn ->
+            Agent.get(:group, & &1)
+            |> Naas.getGroupInfo()
+          end)}
+        end)
+        |> Enum.filter(fn {_,ele} -> not is_nil(ele) end)
+      ) do
+      [] ->
+        cookie = Naas.secretGen
+        ;
+        %{
+          "central" => %{},
+          "connections" => [Node.self |> Atom.to_string],
+          "cookie" => cookie
+        }
+      [first|_] ->
+        first
+        |> Map.get_and_update!("connetions", fn val -> {val, [Node.self |> Atom.to_string|val] |> Enum.uniq} end)
+      end
+    end
+    case {name,data, Node.alive?()} do
+    {a,b,_} when is_nil(a) or is_nil(b) ->
       Cli.error("group \'#{name}\' already exists");
       nil
-    else
+    {_,_, false} ->
+      Cli.error("please start node before making a new group");
+      nil
+    _->
       File.mkdir_p("./groups/#{name}");
       File.mkdir_p("./groups/#{name}/data");
       File.write("./groups/#{name}/.config",
-        %{
-          "central" => %{},
-          "connections" => [],
-          "cookie" =>
-            case {getConfig("cookie"),cookie} do
-            {nil,nil} -> nil
-            {c,nil} -> c
-            {_,c} -> c
-            end,
-        } |> JSON.encode!
-        );
-      Cli.toScreen("Made group #{name} at path: \'./groups/#{name}\'");
+        data |> JSON.encode!
+      );
+      Cli.toScreen("Made group #{name} at path:\n  './groups/#{name}'");
+      Naas.connectGroup(name)
       nil
     end
   end
@@ -277,10 +351,17 @@ defmodule Naas do
     case Agent.get(:group, & &1) do
     nil -> Cli.toScreen "Not currently in a group"
     a ->
-      Cli.toScreen "In group: " <> a;
-      Cli.toScreen getGroupInfo(a) |> Map.get("connections");
-      Cli.toScreen getGroupInfo(a) |> Map.get("cookie");
-      networkInfo();
+      case getGroupInfo(a) do
+      nil ->
+        Cli.error("currently in an unknown group")
+      data ->
+        Cli.toScreen "In group: " <> a;
+        Cli.toScreen "Connections:";
+        Cli.toScreen data |> Map.get("connections") |> Enum.join("\n");
+        Cli.toScreen "Cookie:";
+        Cli.toScreen data |> Map.get("cookie");
+        networkInfo();
+      end
     end
     nil
   end

@@ -1,8 +1,7 @@
 defmodule Zm
 	do
 	def mkpath() do
-		now = DateTime.now!("Etc/UTC") |> DateTime.to_string
-		:crypto.hash(:sha256, now) |> Base.encode16
+		Naas.secretGen
 	end
 
   def getCentralApi(group) do
@@ -54,8 +53,8 @@ defmodule Zm
 
   def fetch(group\\Agent.get(:group,& &1)) do
     if(not (group |> is_nil)) do
-      {central, _} = getCentralApi(group)
-      case central.fetch() do
+      {central, api} = getCentralApi(group)
+      case central.fetch(api) do
       nil ->
         Cli.error("fetching from central failed")
       file ->
@@ -75,7 +74,7 @@ defmodule CentralInterface do
     Cli.error("post api unimplemented")
     nil
   end
-  def fetch() do
+  def fetch(_) do
     Cli.error("fetch api unimplemented")
     nil
   end
@@ -100,17 +99,16 @@ defmodule NodeCentral do
   end
   def getCentralNode() do
     self = Node.self()
+    c = Naas.cookieIs
     list = [self|Node.list()]
-    |> List.foldl([], fn ele, acc ->
-      [Task.async(fn ->
-        :erpc.call(ele, fn -> {ele, Agent.get(:role, & &1) == :central} end)
-      end)|acc]
+    |> Naas.inParallel(fn ele ->
+      :erpc.call(ele, fn ->
+        { ele,
+          Agent.get(:role, & &1) == :central
+          and Naas.cookieIs c
+        } end)
     end)
-    |> Task.yield_many(on_timeout: :kill_task, timeout: 1000)
-    |> Enum.map(fn {task, res} -> res || Task.shutdown(task, :brutal_kill) end)
-    |> List.foldl([], fn {_,res},acc -> [res|acc]end)
     |> Enum.filter(fn {_,v} -> v end)
-
     if (list |> length == 0) do
       nil
     else
@@ -144,12 +142,22 @@ defmodule NodeCentral do
     end
     nil
   end
-  def fetch() do
-    case getCentralNode() do
+  def fetch(api\\nil) do
+    central = case {getCentralNode(),api} do
+    {nil,nil} ->
+      nil
+    {nil,_} ->
+      c = Naas.cookieIs
+      Naas.connectNode(api,c)
+      api |> String.to_atom
+    {c,_} ->
+      c
+    end
+
+    case central do
     nil ->
       Cli.error("no central node found")
-      nil
-    central ->
+    _ ->
       centralFileName = "#{:erpc.call(central, fn -> Agent.get(:group, & &1) end)}.zip"
       filePath = "./central/#{centralFileName}"
       tempPath = "./temp/#{Agent.get(:group, & &1)}-#{Zm.mkpath}/#{centralFileName}"
