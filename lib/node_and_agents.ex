@@ -3,7 +3,8 @@ defmodule Naas do
     {:ok, _} = Agent.start_link(fn -> true end, name: :interactive_output)
     {:ok, _} = Agent.start_link(fn -> nil end, name: :group)
     {:ok, _} = Agent.start_link(fn -> :online end, name: :role) # :online | :host | :central
-    {:ok, _} = Agent.start_link(fn -> nil end, name: :server)
+    {:ok, _} = Agent.start_link(fn -> nil end, name: :host_server)
+    {:ok, _} = Agent.start_link(fn -> Process.spawn(fn -> Naas.runMsgServer() end, [:link]) end, name: :message_server)
     Task.start_link(fn -> System.cmd("epmd", []) end)
 
     if not File.exists?(".config") do
@@ -19,6 +20,29 @@ defmodule Naas do
       Cli.toScreen "Imported config to Agent"
       # IO.inspect pid
     end)
+  end
+
+  def monosodiumglutamate(src \\:nonode@nohost, msg \\ "ping") do
+    case Agent.get(:message_server, & &1) do
+      nil -> nil
+      a ->
+        Process.send(a,{
+          :message,
+          src |> Atom.to_string,
+          msg
+        },[])
+    end
+    nil
+  end
+  def runMsgServer() do
+    receive do
+      {:message, src, msg} ->
+        "#{IO.ANSI.yellow()}#{src}: #{msg}#{IO.ANSI.reset()}" |> Cli.toScreen
+        Naas.runMsgServer()
+      _ ->
+        "no message matched" |> Cli.error
+        Naas.runMsgServer()
+    end
   end
   def setRole(role) do
 
@@ -179,6 +203,7 @@ defmodule Naas do
       l |> Naas.inParallel(fn ele ->
         if( self != ele
         and not is_nil(c)
+        and Node.ping(ele|> String.to_atom) == :pong
         and :erpc.call(ele|> String.to_atom, fn -> Naas.cookieIs c end)
         ) do
           connectNode(ele,c)
@@ -376,19 +401,9 @@ defmodule Naas do
   def broadcastMessage(message) do
     self = Node.self()
     Node.list
-    |> Enum.map(fn e ->
-      :erpc.call(e, fn ->
-        pid = Process.spawn(fn ->
-          receive do
-            mes -> :erpc.call(self, fn ->
-              Cli.toScreen(mes)
-            end)
-          after 1000 ->
-            exit(:normal)
-          end
-        end, [:link])
-        Process.send(pid, message, [])
-    end) end)
+    |> Naas.inParallel(fn n ->
+      :erpc.cast(n,Naas,:monosodiumglutamate,[self,message])
+    end)
     nil
   end
   def networkInfo() do

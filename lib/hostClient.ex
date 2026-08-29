@@ -5,7 +5,7 @@ defmodule Host do
   end
   def stopServer() do
     # stop the mc server
-    Process.send(Agent.get(:server, & &1),:stop,[])
+    Process.send(Agent.get(:host_server, & &1),:stop,[])
     Agent.update(:role, fn _ -> :online end)
     Node.list()
     |> List.foldl(nil, fn ele,_ ->
@@ -47,7 +47,7 @@ defmodule Host do
   end
   def start() do
     # use Process.send(pid,{:message,msg})
-    Agent.update(:server, fn _ -> Process.spawn(fn -> Host.runServer() end, [:link]) end)
-    Process.send(Agent.get(:server, & &1),:start,[])
+    Agent.update(:host_server, fn _ -> Process.spawn(fn -> Host.runServer() end, [:link]) end)
+    Process.send(Agent.get(:host_server, & &1),:start,[])
   end
 end

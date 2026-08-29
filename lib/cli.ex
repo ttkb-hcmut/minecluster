@@ -7,7 +7,7 @@ defmodule Command do
   """
   def arbitraryArg({ctx,inputs,_}) do
     inputParser = fn argsList ->
-      {_,res} = inputs
+      {excess,res} = inputs
       |> Enum.reverse
       |> List.foldl({[],%{}}, fn ele,{hold,ret} ->
         if ele not in argsList do
@@ -17,7 +17,7 @@ defmodule Command do
           {[],ret|> Map.put_new(ele,hold)}
         end
       end)
-      res
+      res |> Map.put_new("",excess)
     end
 
     callback = ctx |> Map.get(:a, fn _ -> Cli.error "no action found" end)
@@ -179,6 +179,13 @@ defmodule Cli do
       exit: %{
         i: "Exit the cli",
         a: fn _ -> Command.exitCli() end
+      },
+      msg: %{
+        i: "Broadcast a message to all connected nodes",
+        a: fn opts -> Naas.broadcastMessage(opts |> Map.get("",[]) |> Enum.join(" ")) end,
+        p: %{
+          "" => "Message to be broadcasted"
+        }
       },
       config: %{
         i: "Configure stuff",
