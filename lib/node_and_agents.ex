@@ -17,7 +17,7 @@ defmodule Naas do
     File.open(".config", [:read], fn file ->
       data = IO.read(file, :line)
       {:ok, _} = Agent.start_link(fn ->  data |> JSON.decode! end, name: :config)
-      Cli.toScreen "Imported config to Agent"
+      Cli.detail "Imported config to Agent"
       # IO.inspect pid
     end)
   end
@@ -37,10 +37,10 @@ defmodule Naas do
   def runMsgServer() do
     receive do
       {:message, src, msg} ->
-        "#{IO.ANSI.yellow()}#{src}: #{msg}#{IO.ANSI.reset()}" |> Cli.toScreen
+        "#{IO.ANSI.green()}#{src}: #{msg}#{IO.ANSI.reset()}" |> Cli.info
         Naas.runMsgServer()
       _ ->
-        "no message matched" |> Cli.error
+        "no message matched" |> Cli.warning
         Naas.runMsgServer()
     end
   end
@@ -69,15 +69,15 @@ defmodule Naas do
         NodeCentral.centralStart()
         nil
       {a,b} when a == b ->
-        Cli.toScreen("setRole trying to set your role to the same role: {#{a|>Atom.to_string},#{b|>Atom.to_string}}")
+        Cli.warning("setRole trying to set your role to the same role: {#{a|>Atom.to_string},#{b|>Atom.to_string}}")
         nil
       {a,b} ->
-        Cli.error("no setRole pattern matched for {#{a|>Atom.to_string},#{b|>Atom.to_string}}")
+        Cli.error("No setRole pattern matched for {#{a|>Atom.to_string},#{b|>Atom.to_string}}")
         nil
       end
 
     else
-      Cli.error "not currently in a group yet"
+      Cli.error "Not currently in a group yet"
       nil
     end
   end
@@ -90,10 +90,10 @@ defmodule Naas do
   end
 
   def getAllConfig() do
-    Cli.toScreen "All stored configs:"
+    Cli.info "All stored configs:"
     map = getConfig()
     for k <- (map |> Map.keys) do
-       "\t" <> IO.ANSI.blue() <> k <> IO.ANSI.reset() <> ": " <> (map |> Map.get(k)) |> Cli.toScreen
+       "\t" <> IO.ANSI.blue() <> k <> IO.ANSI.reset() <> ": " <> (map |> Map.get(k)) |> Cli.info
     end
     nil
   end
@@ -113,7 +113,7 @@ defmodule Naas do
   def startNode(address\\nil,cookie\\nil) do
     {r, _} = case {getConfig("address"),address} do
       {nil,nil} ->
-        Cli.error "no address found in arg or config";
+        Cli.error "No address found in arg or config";
         {:error,nil}
       {a,nil} -> Node.start(a|> String.to_atom)
       {_,a} -> Node.start(a|> String.to_atom)
@@ -123,10 +123,10 @@ defmodule Naas do
       {_,nil,nil} -> Node.set_cookie(:"")
       {_,c,nil} ->
         Node.set_cookie(c|> String.to_atom)
-        Cli.toScreen "Started node with address: #{Node.self() |> Atom.to_string}"
+        Cli.detail "Started node with address: #{Node.self() |> Atom.to_string}"
       {_,_,c} ->
         Node.set_cookie(c|> String.to_atom)
-        Cli.toScreen "Started node with address: #{Node.self() |> Atom.to_string}"
+        Cli.detail "Started node with address: #{Node.self() |> Atom.to_string}"
     end
     nil
   end
@@ -140,11 +140,12 @@ defmodule Naas do
     # address = if(address |> String.contains?(".")) do address else address<>".local" end
     case Node.connect(address |> String.to_atom) do
     true ->
-      Cli.toScreen "Successfully connected to nodes:";
-      Node.list() |> Enum.map(fn ele -> ele |> Atom.to_string end) |> Enum.join(", ") |> Cli.toScreen;
+      Cli.info "Successfully connected to nodes:#{
+        Node.list() |> Enum.map(fn ele -> "\n  #{ele |> Atom.to_string}" end) |> Enum.join("")
+      }";
       true
-    false -> Cli.error "failed to connect to node: " <> address; false
-    :ignored -> Cli.error("local node is not alive"); :ignored
+    false -> Cli.error "Failed to connect to node: " <> address; false
+    :ignored -> Cli.error("Local node is not alive"); :ignored
     end
   end
   def getGroupInfo(group, cookie\\nil) do
@@ -156,7 +157,7 @@ defmodule Naas do
         |> Map.get(cookie, nil)
     end
     if(name not in listGroup()) do
-      Cli.error("no group found with name");
+      Cli.error("No group found with name");
       nil
     else
       {:ok,file} = File.open("./groups/#{group}/.config", [:read])
@@ -169,7 +170,7 @@ defmodule Naas do
   end
   def setGroupInfo(data,group) do
     if(group not in listGroup()) do
-      Cli.error("no group found with name \'#{group}\'");
+      Cli.error("No group found with name \'#{group}\'");
       nil
     else
       File.write("./groups/#{group}/.config", data |> JSON.encode!)
@@ -224,7 +225,7 @@ defmodule Naas do
 
   def syncGroupConnection() do
     case Agent.get(:group, & &1) do
-    nil -> Cli.error("not connected to a group")
+    nil -> Cli.error("Not connected to a group")
     g ->
       case getGroupInfo(g) do
       nil -> nil
@@ -242,7 +243,7 @@ defmodule Naas do
           |> Enum.uniq}
         end)
         File.write("./groups/#{g}/.config", d |> JSON.encode!)
-        Cli.toScreen d
+        Cli.detail d
       end
     end
     nil
@@ -258,18 +259,18 @@ defmodule Naas do
     { g , nil} -> g
     { _ , g  } ->
       if(g in listGroup()) do g else
-        Cli.error("no group found with name \'#{group}\'");
+        Cli.error("No group found with name \'#{group}\'");
         nil
       end
     end
 
     case {addition,destination} do
     {nil,nil} ->
-      Cli.error("can't add no node provided/no nodes connected to no group connected to/no group provided")
+      Cli.error("Can't add no node provided/no nodes connected to no group connected to/no group provided")
     {nil,_} ->
-      Cli.error("can't add no node provided/no nodes connected to anything")
+      Cli.error("Can't add no node provided/no nodes connected to anything")
     {_,nil} ->
-      Cli.error("can't add anything to no group connected to/no group provided")
+      Cli.error("Can't add anything to no group connected to/no group provided")
     {a , g} ->
       {:ok, file} = File.open("./groups/#{g}/.config", [:read])
       {_,d} = file
@@ -278,7 +279,7 @@ defmodule Naas do
       |> Map.get_and_update("connections", fn l -> {nil, ( a ++ l )|> Enum.uniq} end)
       File.close(file)
       File.write("./groups/#{g}/.config", d |> JSON.encode!)
-      Cli.toScreen d |> Map.get("connections","none")
+      Cli.detail d |> Map.get("connections","none")
     end
     nil
   end
@@ -301,8 +302,8 @@ defmodule Naas do
         acc |> Map.put_new(cookie,group)
       end)
     {{:error, reason},_} ->
-      Cli.error("failed to read ./groups directory: #{reason}");
-      Cli.toScreen("Making ./groups directory");
+      Cli.warning("failed to read ./groups directory: #{reason}");
+      Cli.detail("Making ./groups directory");
       File.mkdir_p("./groups");
       Naas.listGroup(mode)
     end
@@ -319,14 +320,14 @@ defmodule Naas do
     false ->
       name
     true ->
-      Cli.error ""
+      Cli.error "The name \'#{name}\' already exists"
       nil
     end
     data = case {name, is_nil(Agent.get(:group,& &1))} do
     {nil,_} ->
       nil
     {_,false} ->
-      Cli.error "already in a group '#{Agent.get(:group,& &1)}'; please leave before creating a new group"
+      Cli.error "Already in a group '#{Agent.get(:group,& &1)}'; please leave before creating a new group"
       nil
     {_,true} ->
       # case you "connected" to a group but hasn't registered it as a group for yourself
@@ -356,10 +357,9 @@ defmodule Naas do
     end
     case {name,data, Node.alive?()} do
     {a,b,_} when is_nil(a) or is_nil(b) ->
-      Cli.error("group \'#{name}\' already exists");
       nil
     {_,_, false} ->
-      Cli.error("please start node before making a new group");
+      Cli.error("Please start node before making a new group");
       nil
     _->
       File.mkdir_p("./groups/#{name}");
@@ -367,37 +367,30 @@ defmodule Naas do
       File.write("./groups/#{name}/.config",
         data |> JSON.encode!
       );
-      Cli.toScreen("Made group #{name} at path:\n  './groups/#{name}'");
+      Cli.detail("Made group #{name} at path:\n  './groups/#{name}'");
       Naas.connectGroup(name)
       nil
     end
   end
   def groupStatus() do
     case Agent.get(:group, & &1) do
-    nil -> Cli.toScreen "Not currently in a group"
+    nil -> Cli.info "Not currently in a group"
     a ->
       case getGroupInfo(a) do
       nil ->
-        Cli.error("currently in an unknown group")
+        Cli.error("Currently in an unknown group")
       data ->
-        Cli.toScreen "In group: " <> a;
-        Cli.toScreen "Connections:";
-        Cli.toScreen data |> Map.get("connections") |> Enum.join("\n");
-        Cli.toScreen "Cookie:";
-        Cli.toScreen data |> Map.get("cookie");
-        networkInfo();
+        Cli.info "In group: " <> a;
+        Cli.info "Connections: \n  #{
+          data |> Map.get("connections") |> Enum.join("\n  ")
+        }";
+        Cli.info "Cookie: \n  #{
+          data |> Map.get("cookie")
+        }";
       end
     end
     nil
   end
-  # def bmHelper() do
-  #   receive do
-  #     msg ->
-  #       :erpc.cast(Node.self, fn -> msg |> Cli.toScreen end)
-  #   after 1000 ->
-  #     nil
-  #   end
-  # end
   def broadcastMessage(message) do
     self = Node.self()
     Node.list
@@ -407,8 +400,8 @@ defmodule Naas do
     nil
   end
   def networkInfo() do
-    {hosts,plebs,central} = [Node.self|Node.list()] |> List.foldl({[],[],[]}, fn ele,{h,p,c} ->
-      Cli.toScreen ele |> Atom.to_string
+    networkMembers = [Node.self|Node.list()]
+    {hosts,plebs,central} = networkMembers |> List.foldl({[],[],[]}, fn ele,{h,p,c} ->
       res = :erpc.call(ele, fn -> Agent.get(:role, & &1) end )
       case res do
         :host -> {[ele|h], p, c}
@@ -416,15 +409,12 @@ defmodule Naas do
         _ -> {h, [ele|p],c}
       end
     end)
-    Cli.toScreen(central |> List.foldl("CENTRAL:", fn ele,acc ->
-      acc <> "\n" <> (ele|> Atom.to_string)
-    end))
-    Cli.toScreen(hosts |> List.foldl("HOST:", fn ele,acc ->
-      acc <> "\n" <> (ele|> Atom.to_string)
-    end))
-    Cli.toScreen(plebs |> List.foldl("CONNECTED:", fn ele,acc ->
-      acc <> "\n" <> (ele|> Atom.to_string)
-    end))
+
+    [ "Network Members:#{networkMembers |> Enum.map(fn e ->"\n  #{e |> Atom.to_string}" end)}",
+      "Central:#{central |> Enum.map(fn e ->"\n  #{e |> Atom.to_string}" end)}",
+      "Host:#{hosts |> Enum.map(fn e ->"\n  #{e |> Atom.to_string}" end)}",
+      "Online:#{plebs |> Enum.map(fn e ->"\n  #{e |> Atom.to_string}" end)}" ] |> Enum.join("\n") |> Cli.info
+
     {hosts,plebs}
   end
   def disconnectNode() do
@@ -438,7 +428,7 @@ defmodule Naas do
 
     Agent.update(:group, fn _ -> nil end)
     Node.stop()
-    Cli.toScreen("Stopped node")
+    Cli.detail("Stopped node")
     nil
   end
 end

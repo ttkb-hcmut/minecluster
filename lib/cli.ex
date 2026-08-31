@@ -13,14 +13,22 @@ defmodule Command do
         if ele not in argsList do
           {[ele|hold],ret}
         else
-          Cli.toScreen("Parsed: #{ele} => [#{Enum.join(hold,", ")}]")
-          {[],ret|> Map.put_new(ele,hold)}
+          {[],ret |> Map.update(ele,hold,fn e -> hold ++ e end)}
         end
       end)
-      res |> Map.put_new("",excess)
+
+      res |> Map.update("",excess,fn e -> excess ++ e end)
+      |> then(fn r ->
+      Cli.detail "Parsed:" <> (
+        r |> Map.keys() |> Enum.map(fn e ->
+          "\n  #{if e == "" do "<excess>" else e end} => [#{r |> Map.get(e,"")|> Enum.join(",")}]"
+        end) |> Enum.join("")
+      )
+      r
+      end)
     end
 
-    callback = ctx |> Map.get(:a, fn _ -> Cli.error "no action found" end)
+    callback = ctx |> Map.get(:a, fn _ -> Cli.error "No action found" end)
     ctx
     |> Map.get(:p, %{}) # arg options
     |> Map.keys
@@ -38,89 +46,142 @@ defmodule Command do
   @doc"""
   Demo printing all possible continuations from an inputed command
   """
-  def help(h,ctx) do
+  def help(recursive,ctx,h \\ ["..."]) do
     info = ctx |> Map.get(:i, "NO INFORMATION")
+    action   = ctx |> Map.get(:a, fn _ -> nil end)
     children = ctx |> Map.get(:c, %{}) |> Map.keys
     params   = ctx |> Map.get(:p, %{})
-    Cli.toScreen "i: " <> info
-    Cli.toScreen "c: " <> (
-      children
-      |> Enum.map(fn ele ->
-        case ele do
-        :"" -> "<input>"
-        _ -> ele |> Atom.to_string
-        end
-      end)
-      |> Enum.join(" | ")
-    )
-    Cli.toScreen "p: " <> (
-      params
-      |> Map.keys
-      |> Enum.join(" | ")
-    )
-    for c <- children do
-      command = case c do
-        :"" ->  "<input>"
-        _ ->  (c |> Atom.to_string)
+    [head|tail] = h
+    toScreen = [
+      "\n?> #{(tail |> Enum.reverse |> Enum.map(fn e -> "#{e} " end) |> Enum.join(""))<>IO.ANSI.blue()<>IO.ANSI.underline()<>head<>IO.ANSI.reset()
+      <> " "
+      <> Command.commandContinuations(is_nil(action) or is_binary(action),children,params)
+      }",
+      "i: #{ info }"
+    ] ++ (params |> Map.keys |> List.foldl([], fn ele,acc ->
+      acc ++ ["   #{ele} => #{Map.get(params,ele,"")}"]
+    end))
+
+    Cli.info toScreen |> Enum.join("\n")
+
+    if recursive do
+      for c <- children do
+        command = case c do
+          :"" ->  "<input>"
+          _ ->  (c |> Atom.to_string)
+          end
+        help(true,ctx |> Map.get(:c,%{}) |> Map.get(c,%{}),[command|h])
       end
-      Cli.toScreen "\n?> " <> (h |> List.foldl("",fn ele,acc-> ele <> " " <> acc end)) <> IO.ANSI.blue() <> IO.ANSI.underline() <> command <> IO.ANSI.reset()
-      help([command|h],ctx |> Map.get(:c,%{}) |> Map.get(c,%{}))
     end
-    for p <- (params |> Map.keys) do
-      Cli.toScreen "   " <> IO.ANSI.green() <> IO.ANSI.underline() <> p <> IO.ANSI.reset() <> " " <> Map.get(params,p,"")
-    end
+  end
+  def commandContinuations(required\\false,children\\[],params\\%{}) do
+    IO.ANSI.color(2,2,2)
+    <>( children
+    |> Enum.map(fn ele -> if ele == :"" do "<input>" else ele |> Atom.to_string end end)
+    |> Enum.join("|")
+    |> then(fn c -> if !required and c != "" do "\[#{c}\]" else c end end)
+    )
+    <> (params
+    |> Map.keys
+    |> Enum.join("|")
+    |> then(fn p -> if p != "" do "\[#{p} ...\]" else p end end))
+    <> IO.ANSI.reset()
   end
   @doc"""
   Demo exit point for Cli (implement these with cleanup like node disconnect handling, config saving, etc...)
   """
   def exitCli() do
-    Cli.toScreen "cleaning up before quitting CLI"
+    Cli.detail "cleaning up before quitting CLI"
     0
   end
   @doc"""
   Demo function ran without capturing input
   """
   def foo() do
-    Cli.toScreen "Ran foo"
+    Cli.detail "Ran foo"
     nil
   end
   @doc """
   Demo function for captured input operations
   """
   def captured({_,_,[head|_]}) do
-    Cli.toScreen "Ran captured with: " <> head
+    Cli.detail "Ran captured with: " <> head
     nil
   end
   @doc """
   Prompts the user for more args to match up with current ctx's children
   """
-  def prompt({ctx,i,c},extra\\fn -> nil end) do
-    Cli.toScreen "\nWhat is your command? (append with arg #{IO.ANSI.blue()}help#{IO.ANSI.reset()} to see options) "
-    for k <- (ctx |> Map.get(:c,%{}) |> Map.keys) do
-       "\t" <> IO.ANSI.blue() <> (case k do
-        :"" -> "<input>"
-        _ -> k |> Atom.to_string
-      end) <> IO.ANSI.reset() <> " => " <> (ctx |> Map.get(:c) |> Map.get(k) |> Map.get(:i,"No information")) |> Cli.toScreen
-    end
-    extra.()
-    input = IO.gets(
-      case (Node.self()) do
-      :nonode@nohost -> ""
-      s ->
+  def prompt({ctx,i,c},extra\\nil,is_start\\false) do
+    # Cli.info "\nWhat is your command? (append with arg #{IO.ANSI.blue()}help#{IO.ANSI.reset()} to see options) "
+    # for k <- (ctx |> Map.get(:c,%{}) |> Map.keys) do
+    #    "\t" <> IO.ANSI.blue() <> (case k do
+    #     :"" -> "<input>"
+    #     _ -> k |> Atom.to_string
+    #   end) <> IO.ANSI.reset() <> " => " <> (ctx |> Map.get(:c) |> Map.get(k) |> Map.get(:i,"No information")) |> Cli.info
+    # end
+    # extra.()
+    # input = IO.gets(
+    #   case (Node.self()) do
+    #   :nonode@nohost -> ""
+    #   s ->
+    #     (s |> Atom.to_string()) <> case Agent.get(:group, & &1) do
+    #     nil -> ""
+    #     g -> " - " <> g
+    #     end
+    #   end <> "> ")
+    action   = ctx |> Map.get(:a, fn _ -> nil end)
+    children = ctx |> Map.get(:c, %{}) |> Map.keys
+    params   = ctx |> Map.get(:p, %{})
+    Cli.info Command.commandContinuations(is_nil(action) or is_binary(action),children,params) <> (if extra != nil do "\n#{extra}" else "" end)
+    prompt = case {Node.self(),is_start} do
+      {_, false} -> "..."
+      {:nonode@nohost,_} -> ""
+      {s,_} ->
         (s |> Atom.to_string()) <> case Agent.get(:group, & &1) do
         nil -> ""
         g -> " - " <> g
         end
-      end <> "> ")
-    {ctx,i ++ ( input |> String.trim |> String.split),c}
+      end <> "> "
+    input = IO.gets(prompt) |> String.trim
+    if is_start and input == "" do
+      nil
+    else
+      {ctx,i ++ (input |> Command.inputSplitter),c}
+    end
   end
-  @spec badArg(map(), any()) :: nil | :ok
+  def inputSplitter(input) do
+    {_,hold,res} = input |> String.split("") |> List.foldr({nil,[],[]}, fn ele,{capture,hold,res} ->
+      case ele do
+        "" ->
+          {capture,hold,res}
+        " " ->
+          if ! is_nil(capture) do
+            {capture,[ele|hold],res}
+          else
+            {capture,[],[hold |> Enum.join("")] ++ res}
+          end
+        g when g in ["\"","\'"] ->
+          if is_nil(capture) do
+            {g,[ele|hold],res}
+          else
+            if g == capture do
+              {nil,[],[[ele|hold]|> Enum.join("")|res]}
+            else
+              {capture,[ele|hold],res}
+            end
+          end
+        _ ->
+          {capture,[ele|hold],res}
+      end
+    end)
+    [hold |> Enum.join("")] ++ res
+  end
   @doc """
   Inform the user of the bad arg, expected args, and returns to Cli start
   """
   def badArg(ctx, arg\\"") do
     Cli.error(
-      "bad argument provided: #{arg}\n" <>
+      "Bad argument provided: #{arg}\n" <>
       (
         ctx
         |> Map.get(:c,%{})
@@ -138,20 +199,67 @@ defmodule Command do
 end
 
 defmodule Cli do
-  def toScreen(input) do
-    case Agent.get(:interactive_output, & &1) do
-    true ->
+  def info(input) do
+    logLevel = case Naas.getConfig("logLevel") do
+      nil -> ["info"]
+      a -> a
+    end
+    case {Agent.get(:interactive_output, & &1),"info" in logLevel} do
+    {true,true} ->
       try do
         IO.puts input
       rescue
         _ -> nil
       end
-    false ->
+    {false,true} ->
+      try do
+      IO.puts %{type: "info", data: input} |> JSON.encode!
+      rescue
+        _ -> nil
+      end
+    _ -> nil
+    end
+  end
+  def detail(input) do
+    logLevel = case Naas.getConfig("logLevel") do
+      nil -> ["detail"]
+      a -> a
+    end
+    case {Agent.get(:interactive_output, & &1),"detail" in logLevel} do
+    {true,true} ->
+      try do
+        IO.puts "#{IO.ANSI.color(2,2,2)}#{input}#{IO.ANSI.reset()}"
+      rescue
+        _ -> nil
+      end
+    {false,true} ->
       try do
       IO.puts %{type: "log", data: input} |> JSON.encode!
       rescue
         _ -> nil
       end
+    _ -> nil
+    end
+  end
+  def warning(input) do
+    logLevel = case Naas.getConfig("logLevel") do
+      nil -> ["warning"]
+      a -> a
+    end
+    case {Agent.get(:interactive_output, & &1),"warning" in logLevel} do
+    {true,true} ->
+      try do
+        IO.puts "#{IO.ANSI.yellow()}Warning:#{IO.ANSI.reset()} #{input}"
+      rescue
+        _ -> nil
+      end
+    {false,true} ->
+      try do
+      IO.puts %{type: "warning", data: input} |> JSON.encode!
+      rescue
+        _ -> nil
+      end
+    _ -> nil
     end
   end
   def error(input) do
@@ -173,8 +281,8 @@ defmodule Cli do
   # k: %{i: nil, a: nil, c:%{}}
   def ctree() do
   %{
-    i: "Command info",
-    a: fn a -> Command.prompt(a) end,
+    i: "Cli - append commands with \'help --recursive\' to explore all possible continuations",
+    a: nil,
     c: %{
       exit: %{
         i: "Exit the cli",
@@ -189,7 +297,7 @@ defmodule Cli do
       },
       config: %{
         i: "Configure stuff",
-        a: fn a -> Command.prompt(a) end,
+        a: nil,
         c: %{
           node_address:  %{
             i: "Address of self node used when connecting with other nodes",
@@ -230,11 +338,11 @@ defmodule Cli do
       },
       connect:  %{
         i: "Connect Node to provided address or a saved group with the cookie provided by Config or the arg following",
-        a: fn a -> Command.prompt(a) end,
+        a: nil,
         c: %{
           group: %{
             i: "Connect to group with provided group name following",
-            a: fn a -> Command.prompt(a, fn -> Cli.toScreen Naas.listGroup() end) end,
+            a: Naas.listGroup()|> Enum.join("\n"),
             c: %{
               "": %{
                 i: "Input a group name from listed",
@@ -260,11 +368,11 @@ defmodule Cli do
       },
       group: %{
         i: "List all addresses stored in group",
-        a: fn _ -> Cli.toScreen "\n Available groups:"; Cli.toScreen Naas.listGroup() ;nil end,
+        a: fn _ -> Cli.info "\n Available groups:"; Cli.info Naas.listGroup() ;nil end,
         c: %{
           make: %{
             i: "Add or create a new group with a name. Copies data from the group you are in but not added yet",
-            a: fn a -> Command.prompt(a) end,
+            a: nil,
             c: %{
               "": %{
                 i: "Name of group",
@@ -278,7 +386,7 @@ defmodule Cli do
           },
           add: %{
             i: "Adds all nodes currently connected or provided address arg to the group currently in or provided arg",
-            a: fn a -> Command.prompt(a) end,
+            a: nil,
             c: %{
               "": %{
                 i: "Address to be added to group",
@@ -298,7 +406,7 @@ defmodule Cli do
           },
           role: %{
             i: "Changes your current role in the group",
-            a: fn a -> Command.prompt(a) end,
+            a: nil,
             c: %{
               online: %{
                 i: "Collects all other connections from other nodes in this group",
@@ -316,14 +424,11 @@ defmodule Cli do
           },
           server: %{
             i: "Installs a server to this group",
-            a: fn a -> Command.prompt(a) end,
+            a: nil,
             c: %{
               java: %{
                 i: "Install a Java server",
-                a: fn a -> Command.prompt(a, fn ->
-                  Cli.toScreen "Available versions:"
-                  Cli.toScreen Mj.availableVersions("java")|> Map.keys() |> Enum.join("\n")
-                end) end,
+                a: "Available versions:\n#{Mj.availableVersions("java") |> Map.keys() |> Enum.join("\n")}",
                 c: %{
                   "": %{
                     i: "Version number",
@@ -333,10 +438,7 @@ defmodule Cli do
               },
               bedrock: %{
                 i: "Install a Bedrock server",
-                a: fn a -> Command.prompt(a, fn ->
-                  Cli.toScreen "Available versions:"
-                  Cli.toScreen Mj.availableVersions("bedrock") |> Enum.join("\n")
-                end) end,
+                a: "Available versions:\n#{Mj.availableVersions("bedrock") |> Enum.join("\n")}",
                 c: %{
                   "": %{
                     i: "Version number",
@@ -359,19 +461,22 @@ defmodule Cli do
     }
   }
   end
-  def tree_traverser({ctx,input_list,cached}) do
+  def tree_traverser({ctx,input_list,cached},is_start \\ false) do
     cList = ctx |> Map.get(:c, %{}) |> Map.keys |> Enum.map(fn k -> k |> Atom.to_string end)
     pList = ctx |> Map.get(:p, %{})
-    case {input_list, pList == %{}} do
-    {_,false} ->
+    action= ctx |> Map.get(:a, fn _ -> nil end)
+    case {input_list, pList == %{}, action} do
+    {_,false,_} ->
       Command.arbitraryArg({ctx,input_list,cached})
       nil
-    {[],true} ->
-      (ctx |> Map.get(:a)).({ctx,input_list,cached})
-    {[head | tail],_} -> (
+    {[],true,a} when is_nil(a) or is_binary(a) ->
+      Command.prompt({ctx,input_list,cached},a,is_start)
+    {[],true,a} ->
+      a.({ctx,input_list,cached})
+    {[head | tail],_,_} -> (
       case {head == "help", head in cList, "" in cList} do
       {true,_,_} ->
-        Command.help([],ctx); nil
+        Command.help((tail |> List.first(nil)) in ["-r","--recursive"],ctx); nil
       {_,true, _} ->
         { ctx |> Map.get(:c, %{}) |> Map.get(head |> String.to_existing_atom, %{}),
           tail,
@@ -383,19 +488,19 @@ defmodule Cli do
           [head|cached]
         }
       {_,false, false} ->
-        Command.badArg(ctx, head)
-        start()
+        Command.badArg(ctx, head);
+        nil
       end
       )
     end
     |> then(fn x -> case x do
-    0 -> Cli.toScreen "\n\n\nGoodnight! ==================="; 0
-    nil -> {ctree(),[],[]} |> tree_traverser
+    0 -> Cli.info "\n\n\nGoodnight! ==================="; 0
+    nil -> tree_traverser({ctree(),[],[]},true)
     _ -> x |> tree_traverser
     end end)
   end
   def start() do
-    tree_traverser({ctree(),[],[]})
+    tree_traverser({ctree(),[],[]},true)
     nil
   end
 end

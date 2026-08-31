@@ -13,7 +13,7 @@ defmodule Zm
       {
         case x do
           ["node"|_] -> NodeCentral
-          ["firebase"|_] -> Cli.error("firebase api not implemented")
+          ["firebase"|_] -> Cli.warning("Firebase api not implemented")
             CentralInterface
           _ -> CentralInterface
         end,
@@ -56,7 +56,7 @@ defmodule Zm
       {central, api} = getCentralApi(group)
       case central.fetch(api) do
       nil ->
-        Cli.error("fetching from central failed")
+        Cli.warning("Fetching from central failed")
       file ->
         unzip(file,group)
         File.rm_rf!(file |> Path.dirname)
@@ -71,11 +71,11 @@ end
 
 defmodule CentralInterface do
   def post(_) do
-    Cli.error("post api unimplemented")
+    Cli.warning("Post api unimplemented")
     nil
   end
   def fetch(_) do
-    Cli.error("fetch api unimplemented")
+    Cli.warning("Fetch api unimplemented")
     nil
   end
 end
@@ -84,7 +84,7 @@ defmodule NodeCentral do
   def centralStart() do
     case Agent.get(:group, & &1) do
       nil ->
-        Cli.error "how the hell did you reach this error message?!?"
+        Cli.error "How the hell did you reach this error message?!?"
         Naas.setRole(:online)
         nil
       g ->
@@ -134,7 +134,7 @@ defmodule NodeCentral do
   def post(srcFile) do
     case getCentralNode() do
     nil ->
-      Cli.error("no central node found")
+      Cli.warning("no central node found")
     central ->
       centralFileName = "#{:erpc.call(central, fn -> Agent.get(:group, & &1) end)}.zip"
       filePath = "./central/#{centralFileName}"
@@ -156,7 +156,8 @@ defmodule NodeCentral do
 
     case central do
     nil ->
-      Cli.error("no central node found")
+      Cli.warning("No central node found")
+      nil
     _ ->
       centralFileName = "#{:erpc.call(central, fn -> Agent.get(:group, & &1) end)}.zip"
       filePath = "./central/#{centralFileName}"

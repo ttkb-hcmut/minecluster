@@ -4,7 +4,7 @@ defmodule Pleb do
     :erpc.cast(address, fn -> Naas.addGroup() end)
     # async connect mc to host
     "Connected to Host: " <> (address |> Atom.to_string)
-    |> Cli.toScreen
+    |> Cli.detail
     nil
   end
   def checkForHosts() do

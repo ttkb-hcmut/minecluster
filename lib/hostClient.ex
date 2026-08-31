@@ -1,6 +1,6 @@
 defmodule Host do
   def updateCentral() do
-    "Updating central..." |> Cli.toScreen
+    "Updating central..." |> Cli.detail
     Zm.post()
   end
   def stopServer() do
@@ -30,17 +30,17 @@ defmodule Host do
         runServer()
       :stop ->
         updateCentral()
-        "Stopping server..." |> Cli.toScreen
+        "Stopping server..." |> Cli.detail
         Naas.broadcastMessage "Server is stopping"
         exit(:normal)
       {:command, msg} ->
-        "Ran command:\n#{msg}" |> Cli.toScreen
+        "Ran command:\n#{msg}" |> Cli.detail
         runServer()
       _ ->
-        "no message matched" |> Cli.error
+        "no message matched" |> Cli.warning
         runServer()
     after 300_000 -> # 5 min
-      "trying to update..." |> Cli.toScreen
+      "trying to update..." |> Cli.detail
       updateCentral()
       runServer()
     end

@@ -20,12 +20,12 @@ defmodule Mj do
       userPlat = case :os.type() do
       {:unix, :linux} -> "linux"
       {:win32, _} -> "win"
-      _ -> Cli.error("gang idk what the fuck this shit is"); nil
+      _ -> Cli.error("Gang idk what the fuck this shit is"); nil
       end
       if vers in availableVersions("bedrock") and not is_nil(userPlat) do
         "https://www.minecraft.net/bedrockdedicatedserver/bin-#{userPlat}/bedrock-server-#{vers}.zip" |> String.to_charlist()
       else
-        Cli.error("idk what that version is")
+        Cli.error("Unknown version")
         nil
       end
     end
@@ -33,10 +33,10 @@ defmodule Mj do
   def getServer(plat,vers) do
     api = versionToApi(plat,vers)
     if not is_nil(api) do
-      Cli.toScreen "Found version #{vers}; fetching from: #{api |> List.to_string}"
+      Cli.detail "Found version #{vers}; fetching from: #{api |> List.to_string}"
       download(plat,vers,api)
     else
-    Cli.error("fetch server failed")
+    Cli.warning("Fetch server failed")
     end
   end
   def download(plat,vers,api) do
@@ -65,9 +65,9 @@ defmodule Mj do
         File.mkdir_p("./groups/#{group}/data/versions/#{vers}")
       {_,api,"bedrock"} ->
         download("bedrock",vers,api)
-        Cli.toScreen("Extracting zip...")
+        Cli.detail("Extracting zip...")
         {:ok, _} = :zip.unzip(~c"./jars/#{plat}-#{vers}/server.zip",[cwd: ~c"./groups/#{group}/data/"])
-        Cli.toScreen("Done extracting!")
+        Cli.detail("Done extracting!")
     end
   end
   def runServer(withInstall\\nil) do
@@ -82,7 +82,7 @@ defmodule Mj do
       end
       cond do
         File.exists?("./groups/#{group}/data/bedrock_server.exe") ->
-          Cli.toScreen("Starting Server...")
+          Cli.detail("Starting Server...")
           Par.run(["./groups/#{group}/data/bedrock_server.exe"])
         File.dir?("./groups/#{group}/data/versions") ->
           {:ok, [vers|_]} = File.ls("./groups/#{group}/data/versions")
@@ -90,7 +90,7 @@ defmodule Mj do
           do
             getServer("java",vers)
           end
-          Cli.toScreen("Starting Server...")
+          Cli.detail("Starting Server...")
           File.write!("./groups/#{group}/data/eula.txt","eula=TRUE")
           Par.run([
           "java",
@@ -100,7 +100,7 @@ defmodule Mj do
           "--nogui"
           ], "./groups/#{group}/data")
         true ->
-          Cli.error("no kind of server was found in: ./groups/#{group}/data")
+          Cli.error("No kind of server was found in: ./groups/#{group}/data")
       end
     end
   end
@@ -118,7 +118,7 @@ defmodule Par do
       System.cmd("cmd",["/c", "start" | stuff],
         if is_nil(cd) do [] else [cd: cd] end)
     _ ->
-      Cli.error("platform unsupported")
+      Cli.error("Platform unsupported")
     end
   end
 end
