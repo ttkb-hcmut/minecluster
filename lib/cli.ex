@@ -162,10 +162,10 @@ defmodule Command do
           end
         g when g in ["\"","\'"] ->
           if is_nil(capture) do
-            {g,[ele|hold],res}
+            {g,[hold],res}
           else
             if g == capture do
-              {nil,[],[[ele|hold]|> Enum.join("")|res]}
+              {nil,[],[[hold]|> Enum.join("")|res]}
             else
               {capture,[ele|hold],res}
             end

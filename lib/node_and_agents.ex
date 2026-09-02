@@ -37,7 +37,13 @@ defmodule Naas do
   def runMsgServer() do
     receive do
       {:message, src, msg} ->
-        "#{IO.ANSI.green()}#{src}: #{msg}#{IO.ANSI.reset()}" |> Cli.info
+        group = Agent.get(:group, & &1) |> then(fn g -> if is_nil(g) do "" else " - #{g}" end end)
+        "#{IO.ANSI.green()}#{src}#{group}: #{msg}#{IO.ANSI.reset()}" |> Cli.info
+
+        case :os.type() do
+        {:unix, :linux} -> System.cmd("notify-send", ["#{src}#{group}: #{msg}"])
+        _ -> nil
+        end
         Naas.runMsgServer()
       _ ->
         "no message matched" |> Cli.warning
@@ -360,8 +366,9 @@ defmodule Naas do
           "cookie" => cookie
         }
       [{_,first}|_] ->
-        first
+        {_, newMap} = first
         |> Map.get_and_update!("connections", fn val -> {val, [Node.self |> Atom.to_string|val] |> Enum.uniq} end)
+        newMap
       end
     end
     case {name,data, Node.alive?()} do
