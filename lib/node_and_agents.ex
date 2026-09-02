@@ -350,7 +350,7 @@ defmodule Naas do
           "connections" => [Node.self |> Atom.to_string],
           "cookie" => cookie
         }
-      [first|_] ->
+      [{_,first}|_] ->
         first
         |> Map.get_and_update!("connetions", fn val -> {val, [Node.self |> Atom.to_string|val] |> Enum.uniq} end)
       end
