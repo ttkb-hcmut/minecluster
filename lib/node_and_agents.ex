@@ -200,17 +200,26 @@ defmodule Naas do
       Zm.fetch(group)
       l = info|> Map.get("connections",[])
       c = info|> Map.get("cookie",nil)
-      self = Node.self |> Atom.to_string
-      l |> Naas.inParallel(fn ele ->
-        if( self != ele
-        and not is_nil(c)
-        and Node.ping(ele|> String.to_atom) == :pong
-        and :erpc.call(ele|> String.to_atom, fn -> Naas.cookieIs c end)
-        ) do
-          connectNode(ele,c)
-        else false end
-      end)
-      setRole(:online)
+      if (not is_nil(c)) do
+        self = Node.self |> Atom.to_string
+        l |> Naas.inParallel(fn ele ->
+          if( self != ele
+          and Node.ping(ele|> String.to_atom) == :pong
+          and :erpc.call(ele|> String.to_atom, fn -> Naas.cookieIs c end)
+          ) do
+            connectNode(ele,c)
+          else false end
+        end)
+        |> List.foldl(false, fn ele,acc -> acc or ele end)
+        |> then(fn res -> case res do
+          true -> nil
+          false ->
+            Node.set_cookie(Node.self, c |> String.to_atom)
+        end end)
+        setRole(:online)
+      else
+        Cli.error "Group's Cookie not found"
+      end
     end
     nil
   end
