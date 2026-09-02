@@ -361,7 +361,7 @@ defmodule Naas do
         }
       [{_,first}|_] ->
         first
-        |> Map.get_and_update!("connetions", fn val -> {val, [Node.self |> Atom.to_string|val] |> Enum.uniq} end)
+        |> Map.get_and_update!("connections", fn val -> {val, [Node.self |> Atom.to_string|val] |> Enum.uniq} end)
       end
     end
     case {name,data, Node.alive?()} do
