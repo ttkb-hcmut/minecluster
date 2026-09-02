@@ -38,6 +38,11 @@ defmodule Naas do
     receive do
       {:message, src, msg} ->
         "#{IO.ANSI.green()}#{src}: #{msg}#{IO.ANSI.reset()}" |> Cli.info
+
+        case :os.type() do
+        {:unix, :linux} -> System.cmd("notify-send", ["#{src}: #{msg}"])
+        _ -> nil
+        end
         Naas.runMsgServer()
       _ ->
         "no message matched" |> Cli.warning
@@ -360,8 +365,9 @@ defmodule Naas do
           "cookie" => cookie
         }
       [{_,first}|_] ->
-        first
+        {_, newMap} = first
         |> Map.get_and_update!("connections", fn val -> {val, [Node.self |> Atom.to_string|val] |> Enum.uniq} end)
+        newMap
       end
     end
     case {name,data, Node.alive?()} do
