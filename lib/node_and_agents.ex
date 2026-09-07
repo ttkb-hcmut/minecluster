@@ -37,16 +37,30 @@ defmodule Naas do
   def runMsgServer() do
     receive do
       {:message, src, msg} ->
-        group = Agent.get(:group, & &1) |> then(fn g -> if is_nil(g) do "" else " - #{g}" end end)
-        "#{IO.ANSI.green()}#{src}#{group}: #{msg}#{IO.ANSI.reset()}" |> Cli.info
+        group = Agent.get(:group, & &1)
+        log = Log.new
+        |> then(fn l -> case group do
+          nil ->
+            l |> Log.info("#{IO.ANSI.green()}#{Log.dataHold}#{Log.dataHold}: #{Log.dataHold}#{IO.ANSI.reset()}",[src,group,msg], "message")
+          _ ->
+            l |> Log.info("#{IO.ANSI.green()}#{Log.dataHold} - #{Log.dataHold}: #{Log.dataHold}#{IO.ANSI.reset()}",[src,group,msg], "message")
+        end end)
+        log |> Log.flush
+        log |> Wit.pushToGui
 
         case :os.type() do
-        {:unix, :linux} -> System.cmd("notify-send", ["#{src}#{group}: #{msg}"])
+        {:unix, :linux} ->
+          System.cmd("notify-send", ["#{src}#{
+            case group do
+              nil -> ""
+              _ -> " - #{group}"
+            end
+          }: #{msg}"])
         _ -> nil
         end
         Naas.runMsgServer()
       _ ->
-        "no message matched" |> Cli.warning
+        Log.error(nil,"No message matched")
         Naas.runMsgServer()
     end
   end

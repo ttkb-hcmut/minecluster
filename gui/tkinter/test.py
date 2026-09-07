@@ -11,7 +11,8 @@ class GuiApp:
         self.root.geometry("400x200")
 
         parser = argparse.ArgumentParser(description="Process some integers.")
-        parser.add_argument("--port", type=int, help="Elixir Port number")
+        parser.add_argument("--sport", type=int, help="Elixir Port number")
+        parser.add_argument("--gport", type=int, help="GUI Port number")
         args = parser.parse_args()
         # Connect to Elixir TCP Server
         try:
