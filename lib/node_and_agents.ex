@@ -5,6 +5,7 @@ defmodule Naas do
     {:ok, _} = Agent.start_link(fn -> :online end, name: :role) # :online | :host | :central
     {:ok, _} = Agent.start_link(fn -> nil end, name: :host_server)
     {:ok, _} = Agent.start_link(fn -> Process.spawn(fn -> Naas.runMsgServer() end, [:link]) end, name: :message_server)
+    {:ok, _} = Agent.start_link(fn -> nil end, name: :push_server)
     Task.start_link(fn -> System.cmd("epmd", []) end)
 
     if not File.exists?(".config") do
@@ -317,7 +318,7 @@ defmodule Naas do
     {{:ok, folders},:name} ->
       folders
     {{:ok, folders},:map} ->
-      folders
+      map = folders
       |> Naas.inParallel(fn ele ->
         File.open("./groups/#{ele}/.config", [:read], fn file ->
           data = IO.read(file, :line) |> JSON.decode! |> Map.get("cookie", nil)
@@ -327,9 +328,11 @@ defmodule Naas do
       |> Enum.filter(fn {_,data} ->
         not is_nil(data)
       end)
-      |> List.foldl(%{}, fn {group,cookie},acc ->
+      |> List.foldl(%{}, fn {_,{group,cookie}},acc ->
         acc |> Map.put_new(cookie,group)
       end)
+      IO.inspect map
+      map
     {{:error, reason},_} ->
       Cli.warning("failed to read ./groups directory: #{reason}");
       Cli.detail("Making ./groups directory");
