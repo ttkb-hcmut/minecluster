@@ -15,9 +15,6 @@ defmodule Log do
     def toCli(self \\ %Log.Info{}) do
       self |> Log.cliZipper
     end
-    def toGui(self \\ %Log.Info{}) do
-      self |> Log.guiDataFormat("info")
-    end
   end
   defmodule Detail do
     defstruct [id: nil, template: "", data: []]
@@ -27,9 +24,6 @@ defmodule Log do
     def toCli(self \\ %Log.Detail{}) do
       %{self | template: "#{IO.ANSI.color(2,2,2)}#{self.template}#{IO.ANSI.reset()}"}
       |> Log.cliZipper
-    end
-    def toGui(self \\ %Log.Detail{}) do
-      self |> Log.guiDataFormat("error")
     end
   end
   defmodule Warning do
@@ -41,9 +35,6 @@ defmodule Log do
       %{self | template: "#{IO.ANSI.yellow()}Warning:#{IO.ANSI.reset()} #{self.template}"}
       |> Log.cliZipper
     end
-    def toGui(self \\ %Log.Warning{}) do
-      self |> Log.guiDataFormat("error")
-    end
   end
   defmodule Error do
     defstruct [id: nil,template: "", data: [] ]
@@ -53,9 +44,6 @@ defmodule Log do
     def toCli(self \\ %Log.Error{}) do
       %{self | template: "#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} #{self.template}"}
       |> Log.cliZipper
-    end
-    def toGui(self \\ %Log.Error{}) do
-      self |> Log.guiDataFormat("error")
     end
   end
 
@@ -72,8 +60,8 @@ defmodule Log do
     end)
     res |> Enum.reverse |> Enum.join("")
   end
-  def guiDataFormat(input \\ %Log.Info{},type \\ "info") do
-    %{input.id => %{type => input.data}}
+  def guiInfoDataFormat(input \\ %Log.Info{}) do
+    %{input.id => input.data}
   end
   def logLevel(check \\ nil) do
     case {Naas.getConfig("logLevel"),check} do
@@ -113,31 +101,34 @@ defmodule Log do
     %{self | list: [log|self.list]}
   end
   def flush(self \\ %Log{}, toGui \\ false) do
-    self.list
-    |> List.foldr({%{},%{},%{},%{}}, fn l, {i,d,w,e} ->
-      case l do
-        %Log.Info{} ->
-          l |> Log.Info.toCli |> IO.puts
-          l |> Log.Info.toGui
-          {_,map} =  i |> Map.get_and_update(l.id, fn v -> if is_nil(v) do {nil,l.data} else {v, v ++ l.data} end end)
-          {map,d,w,e}
-        %Log.Detail{} ->
-          l |> Log.Detail.toCli |> IO.puts
-          {_,map} =  d |> Map.get_and_update(l.id, fn v -> if is_nil(v) do {nil,l.data} else {v, v ++ l.data} end end)
-          {i,map,w,e}
-        %Log.Warning{} ->
-          l |> Log.Warning.toCli |> IO.puts
-          {_,map} =  w |> Map.get_and_update(l.id, fn v -> if is_nil(v) do {nil,l.data} else {v, v ++ l.data} end end)
-          {i,d,map,e}
-        %Log.Error{} ->
-          l |> Log.Error.toCli |> IO.puts
-          {_,map} =  e |> Map.get_and_update(l.id, fn v -> if is_nil(v) do {nil,l.data} else {v, v ++ l.data} end end)
-          {i,d,w,map}
-        _ ->
-          IO.puts "unknown log"
-          {i,d,w,e}
-      end
-    end)
+    case toGui do
+      true ->
+        self.list
+        |> List.foldl(%{},fn l, acc ->
+          case l do
+            %Log.Info{} ->
+              Map.merge(acc, l |> Log.guiInfoDataFormat, fn _k ,u,v -> u ++ v end)
+            _ ->
+              acc
+          end
+        end)
+      false ->
+        self.list
+        |> Enum.map(fn l ->
+          case l do
+            %Log.Info{} ->
+              l |> Log.Info.toCli |> IO.puts
+            %Log.Detail{} ->
+              l |> Log.Detail.toCli |> IO.puts
+            %Log.Warning{} ->
+              l |> Log.Warning.toCli |> IO.puts
+            %Log.Error{} ->
+              l |> Log.Error.toCli |> IO.puts
+            _ ->
+              IO.puts "unknown log"
+          end
+        end)
+    end
   end
   # def detail(input) do
   #   case {Agent.get(:interactive_output, & &1),Log.logLevel("detail")} do

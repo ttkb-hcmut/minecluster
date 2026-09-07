@@ -1,7 +1,5 @@
 defmodule Wit do
   def start(server_port \\ 4000, gui_port \\ 4001) do
-    {:ok, gts_socket} = :gen_tcp.listen(server_port, [:binary, packet: :line, active: false, reuseaddr: true])
-    {:ok, stg_socket} = :gen_tcp.connect(:localhost,gui_port, [:binary, packet: :line, active: false, reuseaddr: true])
     IO.puts("Elixir server listening on port #{server_port}...")
     Task.start_link(fn ->
       System.cmd(System.find_executable("py"),
@@ -11,6 +9,8 @@ defmodule Wit do
           "--gport", "#{gui_port}"
         ])
       end)
+    {:ok, gts_socket} = :gen_tcp.listen(server_port, [:binary, packet: :line, active: false, reuseaddr: true])
+    {:ok, stg_socket} = :gen_tcp.connect(:localhost,gui_port, [:binary, packet: :line, active: false, reuseaddr: true])
     Process.spawn(fn -> Wit.listenServer(gts_socket) end, [:link])
     {:ok, _} = Agent.start_link(fn -> Process.spawn(fn -> Wit.pushServer(stg_socket) end, [:link]) end, name: :push_server)
   end
@@ -81,7 +81,6 @@ defmodule Wit do
   end
 end
 defmodule WitApi do
-  @spec get(any()) :: nil
   def get(request) do
     case request do
       # get all configs
@@ -108,7 +107,7 @@ defmodule WitApi do
       true->
         nil
       false ->
-        res |> Log.toGui |> Wit.pushToGui
+        res |> Log.flush(true) |> Wit.pushToGui
         nil
     end end)
   end

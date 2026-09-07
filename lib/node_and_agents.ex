@@ -390,19 +390,23 @@ defmodule Naas do
   end
   def groupStatus() do
     case Agent.get(:group, & &1) do
-    nil -> Cli.info "Not currently in a group"
+    nil ->
+      Log.new |> Log.info("Not currently in a group",[nil],"groupStatusName")
     a ->
       case getGroupInfo(a) do
       nil ->
-        Cli.error("Currently in an unknown group")
+        Log.new |> Log.error("Currently in an unknown group",[nil],"groupStatusError")
       data ->
-        Cli.info "In group: " <> a;
-        Cli.info "Connections: \n  #{
-          data |> Map.get("connections") |> Enum.join("\n  ")
-        }";
-        Cli.info "Cookie: \n  #{
-          data |> Map.get("cookie")
-        }";
+        Log.new
+        |> Log.info("In group: #{Log.dataHold}", [a], "groupStatusName")
+        |> Log.info(
+          "Connections:#{ data |> Map.get("connections") |> Enum.map("\n  #{Log.dataHold}") |> Enum.join("")}",
+          data |> Map.get("connections"), "groupStatusConnections"
+        )
+        |> Log.info(
+          "Cookie:\n  #{Log.dataHold}",
+          data |> Map.get("cookie"), "groupStatusCookie"
+        )
       end
     end
     nil

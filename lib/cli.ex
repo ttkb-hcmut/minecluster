@@ -362,7 +362,7 @@ defmodule Cli do
           },
           status: %{
             i: "Shows information about the group you are in",
-            a: fn _ -> Naas.groupStatus() end
+            a: fn _ -> Naas.groupStatus() |> Log.flush end
           },
           add: %{
             i: "Adds all nodes currently connected or provided address arg to the group currently in or provided arg",
