@@ -1,6 +1,3 @@
-defmodule ArgPassing do
-  defexception message: "bad argument passing"
-end
 defmodule Command do
   @doc"""
   kinda like real cli argument passing
@@ -51,18 +48,29 @@ defmodule Command do
     action   = ctx |> Map.get(:a, fn _ -> nil end)
     children = ctx |> Map.get(:c, %{}) |> Map.keys
     params   = ctx |> Map.get(:p, %{})
-    [head|tail] = h
-    toScreen = [
-      "\n?> #{(tail |> Enum.reverse |> Enum.map(fn e -> "#{e} " end) |> Enum.join(""))<>IO.ANSI.blue()<>IO.ANSI.underline()<>head<>IO.ANSI.reset()
-      <> " "
-      <> Command.commandContinuations(is_nil(action) or is_binary(action),children,params)
-      }",
-      "i: #{ info }"
-    ] ++ (params |> Map.keys |> List.foldl([], fn ele,acc ->
-      acc ++ ["   #{ele} => #{Map.get(params,ele,"")}"]
-    end))
-
-    Cli.info toScreen |> Enum.join("\n")
+    [_head|tail] = h
+    log = %Log{}
+    helpHistoryTemplate = [
+      IO.ANSI.blue()<>IO.ANSI.underline()<>Log.dataHold<>IO.ANSI.reset()
+      | (tail |> Enum.map(fn _ -> Log.dataHold end))] |> Enum.reverse
+    {paramsTemplate,paramsData} = params
+    |> Map.keys
+    |> List.foldr({[],[]}, fn ele,{pt,pd} ->
+      { ["  #{Log.dataHold} => #{Log.dataHold}"|pt],
+        [ if is_nil(ele) or ele == "" do "<input>" else ele end,
+          params|> Map.get(ele,"No info")
+        | pd]}
+    end)
+    log
+    |> Log.info( "?> " <> (helpHistoryTemplate |> Enum.join(" ")), h |> Enum.reverse, "helpHistory" )
+    |> then(fn l -> case Command.commandContinuations(is_nil(action) or is_binary(action),children,params) do
+      {t,d} when t == "" or d == [] -> l
+      {t,d} -> l |> Log.info(t,d,"commandContinuations")
+      end
+    end)
+    |> Log.info( "i: #{Log.dataHold}", [info], "commandInfo")
+    |> Log.info(paramsTemplate |> Enum.join("\n"),paramsData)
+    |> Log.flush
 
     if recursive do
       for c <- children do
@@ -75,17 +83,29 @@ defmodule Command do
     end
   end
   def commandContinuations(required\\false,children\\[],params\\%{}) do
-    IO.ANSI.color(2,2,2)
-    <>( children
-    |> Enum.map(fn ele -> if ele == :"" do "<input>" else ele |> Atom.to_string end end)
-    |> Enum.join("|")
-    |> then(fn c -> if !required and c != "" do "\[#{c}\]" else c end end)
-    )
-    <> (params
+    {template,data} = children
+    |> List.foldr({[],[]},fn ele,{o,f} ->
+      { [Log.dataHold|o],
+        [if ele == :"" do "<input>" else ele |> Atom.to_string end | f] }
+    end)
+    {template,data} = params
     |> Map.keys
-    |> Enum.join("|")
-    |> then(fn p -> if p != "" do "\[#{p} ...\]" else p end end))
-    <> IO.ANSI.reset()
+    |> List.foldr({template,data},fn ele,{o,f} ->
+      { ["^"|o],
+        [ if is_nil(ele) or ele == "" do "<input>" else ele  end | f ] }
+    end)
+
+    resTemplate = IO.ANSI.color(2,2,2)
+      <> (template
+      |> Enum.join("|")
+      |> then(fn c -> case {required,params == %{},c == ""} do
+        {_,_,true}     -> ""
+        {true,true,_}  -> c
+        {false,true,_} -> "\[#{c}\]"
+        {_,false,_}    -> "\[#{c} ...\]"
+      end end))
+      <> IO.ANSI.reset()
+    { resTemplate,data }
   end
   @doc"""
   Demo exit point for Cli (implement these with cleanup like node disconnect handling, config saving, etc...)
@@ -132,7 +152,12 @@ defmodule Command do
     action   = ctx |> Map.get(:a, fn _ -> nil end)
     children = ctx |> Map.get(:c, %{}) |> Map.keys
     params   = ctx |> Map.get(:p, %{})
-    Cli.info Command.commandContinuations(is_nil(action) or is_binary(action),children,params) <> (if extra != nil do "\n#{extra}" else "" end)
+    {pt,pd} = Command.commandContinuations(is_nil(action) or is_binary(action),children,params)
+    case {Log.detail(Log.new(), pt, pd, "commandContinuations"), is_struct(extra)} do
+      {l,true} -> l |> Log.push(extra)
+      {l,_}    -> l
+    end |> Log.flush
+
     prompt = case {Node.self(),is_start} do
       {_, false} -> "..."
       {:nonode@nohost,_} -> ""
@@ -180,108 +205,59 @@ defmodule Command do
   Inform the user of the bad arg, expected args, and returns to Cli start
   """
   def badArg(ctx, arg\\"") do
-    Cli.error(
-      "Bad argument provided: #{arg}\n" <>
-      (
-        ctx
-        |> Map.get(:c,%{})
-        |> Map.keys
-        |> List.foldl( "Expected:", fn ele,acc ->
-          acc <> "\n" <> case ele do
-          :"" -> "<input>"
-          _ -> ele |> Atom.to_string
-          end <> " => " <> (ctx |> Map.get(:c, %{}) |> Map.get(ele) |> Map.get(:i,"No information"))
-        end
-        )
-      )
+    {template,data} = ctx
+    |> Map.get(:c,%{})
+    |> Map.keys
+    |> List.foldr({"",[]}, fn ele,{t,d} ->
+      {
+        t <> "\n  #{Log.dataHold} => #{Log.dataHold}",
+        [ case ele do
+            :"" -> "<input>"
+            _ -> ele |> Atom.to_string
+          end,
+          ctx |> Map.get(:c, %{}) |> Map.get(ele) |> Map.get(:i,"No information")
+        | d]
+      }
+    end
+    )
+    Log.error(
+      nil,
+      "Bad argument provided: #{Log.dataHold}\nExpected:" <> template,
+      [arg|data],
+      "badArg"
     )
   end
 end
 
 defmodule Cli do
+  @doc ""
+  @depricated "Try using Log.Info and the Log modules instead"
   def info(input) do
-    logLevel = case Naas.getConfig("logLevel") do
-      nil -> ["info"]
-      a -> a
-    end
-    case {Agent.get(:interactive_output, & &1),"info" in logLevel} do
-    {true,true} ->
-      try do
-        IO.puts input
-      rescue
-        _ -> nil
-      end
-    {false,true} ->
-      try do
-      IO.puts %{type: "info", data: input} |> JSON.encode!
-      rescue
-        _ -> nil
-      end
-    _ -> nil
-    end
+    Log.flush Log.new [Log.Info.new(nil,input)]
+    nil
   end
+  @doc ""
+  @depricated "Try using Log.Detail and the Log modules instead"
   def detail(input) do
-    logLevel = case Naas.getConfig("logLevel") do
-      nil -> ["detail"]
-      a -> a
-    end
-    case {Agent.get(:interactive_output, & &1),"detail" in logLevel} do
-    {true,true} ->
-      try do
-        IO.puts "#{IO.ANSI.color(2,2,2)}#{input}#{IO.ANSI.reset()}"
-      rescue
-        _ -> nil
-      end
-    {false,true} ->
-      try do
-      IO.puts %{type: "log", data: input} |> JSON.encode!
-      rescue
-        _ -> nil
-      end
-    _ -> nil
-    end
+    Log.flush Log.new [Log.Detail.new(nil,input)]
+    nil
   end
+  @doc ""
+  @depricated "Try using Log.Warning and the Log modules instead"
   def warning(input) do
-    logLevel = case Naas.getConfig("logLevel") do
-      nil -> ["warning"]
-      a -> a
-    end
-    case {Agent.get(:interactive_output, & &1),"warning" in logLevel} do
-    {true,true} ->
-      try do
-        IO.puts "#{IO.ANSI.yellow()}Warning:#{IO.ANSI.reset()} #{input}"
-      rescue
-        _ -> nil
-      end
-    {false,true} ->
-      try do
-      IO.puts %{type: "warning", data: input} |> JSON.encode!
-      rescue
-        _ -> nil
-      end
-    _ -> nil
-    end
+    Log.flush Log.new [Log.Warning.new(nil,input)]
+    nil
   end
+  @doc ""
+  @depricated "Try using Log.Error and the Log modules instead"
   def error(input) do
-    case Agent.get(:interactive_output, & &1) do
-    true ->
-      try do
-        IO.puts "#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} #{input}"
-      rescue
-        _ -> nil
-      end
-    false ->
-      try do
-        IO.puts %{type: "error", data: input} |> JSON.encode!
-      rescue
-        _ -> nil
-      end
-    end
+    Log.flush Log.new [Log.Error.new(nil,input)]
+    nil
   end
   # k: %{i: nil, a: nil, c:%{}}
   def ctree() do
   %{
-    i: "Cli - append commands with \'help --recursive\' to explore all possible continuations",
+    i: "Cli - append commands with \'help --recursive\' to explore all possible continuations, or \'-\' to cancel currently inputed command ",
     a: nil,
     c: %{
       exit: %{
@@ -364,11 +340,15 @@ defmodule Cli do
       },
       list: %{
         i: "List all nodes connected to",
-        a: fn _ -> Naas.networkInfo();nil end
+        a: fn _ -> Naas.networkInfo() |> Log.flush;nil end
       },
       group: %{
         i: "List all addresses stored in group",
-        a: fn _ -> Cli.info "\n Available groups:"; Cli.info Naas.listGroup() ;nil end,
+        a: Log.Info.new(
+          "availableGroups",
+          "Available groups:#{Naas.listGroup() |> Enum.map(fn _ -> "\n  #{Log.dataHold}" end) |> Enum.join}",
+          Naas.listGroup()
+        ),
         c: %{
           make: %{
             i: "Add or create a new group with a name. Copies data from the group you are in but not added yet",
@@ -428,7 +408,11 @@ defmodule Cli do
             c: %{
               java: %{
                 i: "Install a Java server",
-                a: "Available versions:\n#{Mj.availableVersions("java") |> Map.keys() |> Enum.join("\n")}",
+                a: Log.Info.new(
+                  "availableVersions",
+                  "Available versions:#{Mj.availableVersions("java") |> Map.keys() |> Enum.map(fn _ -> "\n  #{Log.dataHold}" end) |> Enum.join}",
+                  Mj.availableVersions("java") |> Map.keys()
+                ),
                 c: %{
                   "": %{
                     i: "Version number",
@@ -438,7 +422,11 @@ defmodule Cli do
               },
               bedrock: %{
                 i: "Install a Bedrock server",
-                a: "Available versions:\n#{Mj.availableVersions("bedrock") |> Enum.join("\n")}",
+                a: Log.Info.new(
+                  "availableVersions",
+                  "Available versions:#{Mj.availableVersions("bedrock") |> Enum.map(fn _ -> "\n  #{Log.dataHold}" end) |> Enum.join}",
+                  Mj.availableVersions("bedrock")
+                ),
                 c: %{
                   "": %{
                     i: "Version number",
@@ -461,46 +449,54 @@ defmodule Cli do
     }
   }
   end
-  def tree_traverser({ctx,input_list,cached},is_start \\ false) do
+  def tree_traverser({ctx,input_list,cached},is_start \\ false, from_cli \\ true) do
     cList = ctx |> Map.get(:c, %{}) |> Map.keys |> Enum.map(fn k -> k |> Atom.to_string end)
     pList = ctx |> Map.get(:p, %{})
     action= ctx |> Map.get(:a, fn _ -> nil end)
-    case {input_list, pList == %{}, action} do
-    {_,false,_} ->
+    case {input_list, pList == %{}, action,from_cli} do
+    {_,false,_,_} ->
       Command.arbitraryArg({ctx,input_list,cached})
       nil
-    {[],true,a} when is_nil(a) or is_binary(a) ->
+    {[],true,a,true} when is_nil(a) or not is_function(a) ->
       Command.prompt({ctx,input_list,cached},a,is_start)
-    {[],true,a} ->
+    {[],true,a,false} when is_nil(a) or not is_function(a) ->
+      1
+    {[],true,a,_} ->
       a.({ctx,input_list,cached})
-    {[head | tail],_,_} -> (
-      case {head == "help", head in cList, "" in cList} do
-      {true,_,_} ->
+    {[head | tail],_,_,_} -> (
+      case {head == "-", head == "help", head in cList, "" in cList} do
+      {true,_,_,_} ->
+        nil
+      {_,true,_,_} ->
         Command.help((tail |> List.first(nil)) in ["-r","--recursive"],ctx); nil
-      {_,true, _} ->
+      {_,_,true, _} ->
         { ctx |> Map.get(:c, %{}) |> Map.get(head |> String.to_existing_atom, %{}),
           tail,
           cached
         }
-      {_,false, true} ->
+      {_,_,false, true} ->
         { ctx |> Map.get(:c, %{}) |> Map.get(:"",%{}),
           tail,
           [head|cached]
         }
-      {_,false, false} ->
+      {_,_,false, false} ->
         Command.badArg(ctx, head);
         nil
       end
       )
     end
-    |> then(fn x -> case x do
-    0 -> Cli.info "\n\n\nGoodnight! ==================="; 0
-    nil -> tree_traverser({ctree(),[],[]},true)
-    _ -> x |> tree_traverser
+    |> then(fn x -> case {from_cli, x} do
+    {true, 0}   -> Cli.info "\n\n\nGoodnight! ==================="; 0
+    {true, nil} -> tree_traverser({ctree(),[],[]},true)
+    {true, _}   -> tree_traverser(x, false)
+    {false, 0}   -> nil
+    {false, nil} -> nil
+    {false, 1}   -> 1
+    {false, _}   -> tree_traverser(x, false, false)
     end end)
   end
   def start() do
-    tree_traverser({ctree(),[],[]},true)
+    tree_traverser({ctree(),[],[]},true,true)
     nil
   end
 end

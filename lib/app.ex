@@ -5,16 +5,16 @@ defmodule App do
 
   end
 
-  def loop() do
-    case IEx.Helpers.recompile() do
-      :noop -> nil
-      :ok -> IO.puts("Recompile successful!\n")
-      :error -> IO.puts("Oops\n")
-    end
+  # def loop() do
+  #   case IEx.Helpers.recompile() do
+  #     :noop -> nil
+  #     :ok -> IO.puts("Recompile successful!\n")
+  #     :error -> IO.puts("Oops\n")
+  #   end
 
-    Process.sleep(1000)
-    loop()
-  end
+  #   Process.sleep(1000)
+  #   loop()
+  # end
 
 	def start(_type, _arg) do
 		{:ok, pid} = App.Supervisor.start_link(:ok)

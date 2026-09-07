@@ -97,7 +97,7 @@ defmodule Naas do
 
   def getAllConfig() do
     Cli.info "All stored configs:"
-    map = getConfig()
+    map = Naas.getConfig()
     for k <- (map |> Map.keys) do
        "\t" <> IO.ANSI.blue() <> k <> IO.ANSI.reset() <> ": " <> (map |> Map.get(k)) |> Cli.info
     end
@@ -415,7 +415,7 @@ defmodule Naas do
     end)
     nil
   end
-  def networkInfo() do
+  def networkInfo(check \\ nil) do
     networkMembers = [Node.self|Node.list()]
     {hosts,plebs,central} = networkMembers |> List.foldl({[],[],[]}, fn ele,{h,p,c} ->
       res = :erpc.call(ele, fn -> Agent.get(:role, & &1) end )
@@ -425,13 +425,27 @@ defmodule Naas do
         _ -> {h, [ele|p],c}
       end
     end)
-
-    [ "Network Members:#{networkMembers |> Enum.map(fn e ->"\n  #{e |> Atom.to_string}" end)}",
-      "Central:#{central |> Enum.map(fn e ->"\n  #{e |> Atom.to_string}" end)}",
-      "Host:#{hosts |> Enum.map(fn e ->"\n  #{e |> Atom.to_string}" end)}",
-      "Online:#{plebs |> Enum.map(fn e ->"\n  #{e |> Atom.to_string}" end)}" ] |> Enum.join("\n") |> Cli.info
-
-    {hosts,plebs}
+    case check do
+      nil ->
+        listifier = fn l -> l |> List.foldl({"",[]}, fn ele, {t,d} ->
+            { t <> "\n  #{Log.dataHold}",
+              [ele |> Atom.to_string | d]
+            }
+          end)
+        end
+        {nTemplate,nData} = networkMembers |> listifier.()
+        {cTemplate,cData} = central |> listifier.()
+        {hTemplate,hData} = hosts |> listifier.()
+        {oTemplate,oData} = plebs |> listifier.()
+        Log.new
+        |> Log.info("Network Members:" <> nTemplate, nData, "nodeList")
+        |> Log.info("Central:" <> cTemplate, cData, "central")
+        |> Log.info("Host:" <> hTemplate, hData, "host")
+        |> Log.info("Online:" <> oTemplate, oData, "online")
+      :host -> hosts
+      :central -> central
+      :online -> plebs
+    end
   end
   def disconnectNode() do
     self = Node.self() |> Atom.to_string
