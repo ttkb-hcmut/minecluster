@@ -46,7 +46,7 @@ defmodule Naas do
             l |> Log.info("#{IO.ANSI.green()}#{Log.dataHold} - #{Log.dataHold}: #{Log.dataHold}#{IO.ANSI.reset()}",[src,group,msg], "message")
         end end)
         log |> Log.flush
-        log |> Wit.pushToGui
+        log |> Log.flush(true) |> Wit.pushToGui
 
         case :os.type() do
         {:unix, :linux} ->
