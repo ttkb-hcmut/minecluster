@@ -236,24 +236,28 @@ defmodule Cli do
     Log.flush Log.new [Log.Info.new(nil,input)]
     nil
   end
+
   @doc ""
   @deprecated "Try using Log.Detail and the Log modules instead"
   def detail(input) do
     Log.flush Log.new [Log.Detail.new(nil,input)]
     nil
   end
+
   @doc ""
   @deprecated "Try using Log.Warning and the Log modules instead"
   def warning(input) do
     Log.flush Log.new [Log.Warning.new(nil,input)]
     nil
   end
+
   @doc ""
   @deprecated "Try using Log.Error and the Log modules instead"
   def error(input) do
     Log.flush Log.new [Log.Error.new(nil,input)]
     nil
   end
+
   # k: %{i: nil, a: nil, c:%{}}
   def ctree() do
   %{
@@ -449,10 +453,11 @@ defmodule Cli do
     }
   }
   end
-  def tree_traverser({ctx,input_list,cached},is_start \\ false, from_cli \\ true) do
-    cList = ctx |> Map.get(:c, %{}) |> Map.keys |> Enum.map(fn k -> k |> Atom.to_string end)
-    pList = ctx |> Map.get(:p, %{})
-    action= ctx |> Map.get(:a, fn _ -> nil end)
+
+  def tree_traverser({ctx,input_list,cached}, is_start \\ false, from_cli \\ true) do
+    cList  = ctx |> Map.get(:c, %{}) |> Map.keys |> Enum.map(fn k -> k |> Atom.to_string end)
+    pList  = ctx |> Map.get(:p, %{})
+    action = ctx |> Map.get(:a, fn _ -> nil end)
     case {input_list, pList == %{}, action,from_cli} do
     {_,false,_,_} ->
       Command.arbitraryArg({ctx,input_list,cached})
