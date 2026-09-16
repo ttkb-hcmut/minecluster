@@ -130,7 +130,11 @@ defmodule Naas do
     File.write(".config", getConfig() |> JSON.encode!)
     nil
   end
-
+  def getNodeSelf() do
+    Log.new()
+    |> Log.info("Self Address:\n  #{Log.dataHold}",Node.self()|>Atom.to_string,"selfAddress")
+    |> Log.info("Self Cookie:\n  #{Log.dataHold}",Node.get_cookie()|>Atom.to_string,"selfCookie")
+  end
   def startNode(address\\nil,cookie\\nil) do
     {r, _} = case {getConfig("address"),address} do
       {nil,nil} ->

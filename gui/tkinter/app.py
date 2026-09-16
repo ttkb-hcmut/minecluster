@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from components import model
+from components import mainHome
 
 
 class App(tk.Tk):
@@ -21,12 +22,12 @@ class App(tk.Tk):
 class Main(ttk.Frame):
   def __init__(self,parent,controller):
     super().__init__(parent)
-    self.grid(row=1, column=0)
+    self.grid(row=1, column=0, sticky="nsew")
     self.columnconfigure(index=(0),weight=1)
     self.rowconfigure(index=(1),weight=1)
     # self.backgroundColor = ttk.Label(self,background= "#ff0000").pack(expand= True, fill = "both")
 
-    mainHome = MainTab(self,controller,"home")
+    self.mainHome = mainHome.MainHome(self,controller)
     mainGroup = MainTab(self,controller,"group")
     mainConfig = MainTab(self,controller,"config")
     
@@ -42,7 +43,7 @@ class MainTab(ttk.Frame):
 
     self.title = title
     self.label = ttk.Label(self,text=f"Menu of {title}")
-    self.label.grid(row=1, column=0, sticky="nsew")
+    self.label.grid(row=0, column=0, sticky="nsew")
     controller.subscribe("currentTab", self.showHideMenu)
 
 

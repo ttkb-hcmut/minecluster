@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field, fields
+
 import threading
 @dataclass
 class Model:
@@ -8,6 +9,9 @@ class Model:
   # Application data fields =====================
   ## config/all
   configAll: dict = field(default_factory=dict)
+  ## self
+  selfAddress: str = "nonode@nohost"
+  selfCookie: str = "balls"
   ## list
   nodeList: list = field(default_factory=list)
   central: list = field(default_factory=list)

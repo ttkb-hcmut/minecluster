@@ -87,6 +87,10 @@ defmodule WitApi do
       "config/all" ->
         Log.new([Log.Info.new("configAll","",[Naas.getConfig(nil)])])
 
+      # get self address and self cookie
+      "self" ->
+        Naas.getNodeSelf()
+
       # get all nodes connected
       "list" ->
         Naas.networkInfo(nil)
