@@ -15,6 +15,7 @@ defmodule Wit do
     {:ok, stgSocket} = :gen_tcp.connect(:localhost,guiPort, [:binary, packet: :line, active: false, reuseaddr: true])
     Agent.update(:push_server, fn _ -> Process.spawn(fn -> Wit.pushServer(stgSocket) end, [:link]) end)
   end
+
   def pushToGui (data \\ nil) do
     case Agent.get(:push_server, & &1) do
       nil -> nil
@@ -33,6 +34,7 @@ defmodule Wit do
     end
     nil
   end
+
   def pushServer(socket) do
     receive do
       {:data, data} ->
@@ -50,6 +52,7 @@ defmodule Wit do
     spawn(fn -> handleRequest(client) end)
     listenServer(socket)
   end
+
   def handleRequest(client) do
     case :gen_tcp.recv(client, 0) do
       {:ok, data} ->
@@ -76,10 +79,13 @@ defmodule Wit do
         IO.puts("GUI disconnected.")
     end
   end
+
   def runCommand(commandList \\ []) do
     Cli.tree_traverser({Cli.ctree(),commandList,[]},true,false)
   end
+
 end
+
 defmodule WitApi do
   def get(request) do
     case request do

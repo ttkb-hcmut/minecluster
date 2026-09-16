@@ -3,7 +3,6 @@ from tkinter import ttk
 from components import model
 from components import mainHome
 
-
 class App(tk.Tk):
   def __init__(self,controller):
     super().__init__()
@@ -12,12 +11,10 @@ class App(tk.Tk):
     self.minsize(500,250) 
     self.columnconfigure(index=(0),weight=1)
     self.rowconfigure(index=(1),weight=1)
-    
     self.backgroundColor = ttk.Label(self,background= "#ffffff").grid(row=0, column=0, rowspan=2, sticky="nsew")
     self.tabsBar = TabsBar(self,controller)
     self.main = Main(self,controller)
     self.mainloop()
-
 
 class Main(ttk.Frame):
   def __init__(self,parent,controller):
@@ -26,7 +23,6 @@ class Main(ttk.Frame):
     self.columnconfigure(index=(0),weight=1)
     self.rowconfigure(index=(1),weight=1)
     # self.backgroundColor = ttk.Label(self,background= "#ff0000").pack(expand= True, fill = "both")
-
     self.mainHome = mainHome.MainHome(self,controller)
     mainGroup = MainTab(self,controller,"group")
     mainConfig = MainTab(self,controller,"config")
@@ -40,12 +36,10 @@ class MainTab(ttk.Frame):
       self.grid_remove()
     else:
       self.grid()
-
     self.title = title
     self.label = ttk.Label(self,text=f"Menu of {title}")
     self.label.grid(row=0, column=0, sticky="nsew")
     controller.subscribe("currentTab", self.showHideMenu)
-
 
   def showHideMenu(self,data):
     if data == self.title:
@@ -57,7 +51,6 @@ class TabsBar(ttk.Frame):
   def __init__(self,parent,controller):
     super().__init__(parent)
     self.grid(row=0, column=0, sticky="nsew")
-
     self.button_style = ttk.Style()
     self.button_style.configure(
       'button_active.TButton', 
@@ -71,8 +64,6 @@ class TabsBar(ttk.Frame):
       background ='#dddddd',   # Button body color
       padding = 0
     )
-
-
     self.home_button    = ttk.Button(self,text="Home", style='button_active.TButton', padding=5,
                             command = lambda: controller.set("currentTab","home"))
     self.group_button   = ttk.Button(self,text="Group", style='button_inactive.TButton',
