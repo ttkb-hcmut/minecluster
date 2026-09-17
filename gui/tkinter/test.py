@@ -43,7 +43,7 @@ class GuiApp:
       self.gtsSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
       self.gtsSocket.connect(("localhost", int(self.sport)))
     except ConnectionRefusedError:
-      messagebox.onerror("Error", "Could not connect to Elixir server. Is it running?")
+      messagebox.showerror("Error", "Could not connect to Elixir server. Is it running?")
       self.root.quit()
 
 
