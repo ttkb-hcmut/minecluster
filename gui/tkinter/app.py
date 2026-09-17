@@ -7,7 +7,7 @@ class App(tk.Tk):
   def __init__(self,controller):
     super().__init__()
     self.title("Minecluster")
-    self.geometry("1000x500") 
+    self.geometry("500x500") 
     self.minsize(500,250) 
     self.columnconfigure(index=(0),weight=1)
     self.rowconfigure(index=(1),weight=1)
