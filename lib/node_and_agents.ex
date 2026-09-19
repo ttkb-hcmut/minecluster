@@ -430,7 +430,6 @@ defmodule Naas do
         )
       end
     end
-    nil
   end
   def broadcastMessage(message) do
     self = Node.self()
