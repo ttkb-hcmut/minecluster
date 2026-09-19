@@ -1,5 +1,5 @@
 # minecluster
-Minecraft server that implements automatic server forwarding
+Minecraft server that implements automatic host transfer
 
 
 # Dev
