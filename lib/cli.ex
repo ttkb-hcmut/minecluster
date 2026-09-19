@@ -348,11 +348,17 @@ defmodule Cli do
       },
       group: %{
         i: "List all addresses stored in group",
-        a: Log.Info.new(
-          "availableGroups",
-          "Available groups:#{Naas.listGroup() |> Enum.map(fn _ -> "\n  #{Log.dataHold}" end) |> Enum.join}",
+        a: Log.Info.lazy(
+          fn ->
           Naas.listGroup()
-        ),
+          |> List.foldl({"availableGroups","Available groups:",[]},
+            fn ele,{id,template,data} ->
+              { id,
+                template <> "\n  #{Log.dataHold}",
+                [ele|data]
+              }
+            end)
+        end),
         c: %{
           make: %{
             i: "Add or create a new group with a name. Copies data from the group you are in but not added yet",
@@ -412,11 +418,18 @@ defmodule Cli do
             c: %{
               java: %{
                 i: "Install a Java server",
-                a: Log.Info.new(
-                  "availableVersions",
-                  "Available versions:#{Mj.availableVersions("java") |> Map.keys() |> Enum.map(fn _ -> "\n  #{Log.dataHold}" end) |> Enum.join}",
-                  Mj.availableVersions("java") |> Map.keys()
-                ),
+                a: Log.Info.lazy(
+                  fn ->
+                  Mj.availableVersions("java")
+                  |> Map.keys()
+                  |> List.foldl({"availableVersions","Available versions:",[]},
+                    fn ele,{id,template,data} ->
+                      { id,
+                        template <> "\n  #{Log.dataHold}",
+                        [ele|data]
+                      }
+                    end)
+                end),
                 c: %{
                   "": %{
                     i: "Version number",
@@ -426,11 +439,17 @@ defmodule Cli do
               },
               bedrock: %{
                 i: "Install a Bedrock server",
-                a: Log.Info.new(
-                  "availableVersions",
-                  "Available versions:#{Mj.availableVersions("bedrock") |> Enum.map(fn _ -> "\n  #{Log.dataHold}" end) |> Enum.join}",
+                a: Log.Info.lazy(
+                  fn ->
                   Mj.availableVersions("bedrock")
-                ),
+                  |> List.foldl({"availableVersions","Available versions:",[]},
+                    fn ele,{id,template,data} ->
+                      { id,
+                        template <> "\n  #{Log.dataHold}",
+                        [ele|data]
+                      }
+                    end)
+                end),
                 c: %{
                   "": %{
                     i: "Version number",

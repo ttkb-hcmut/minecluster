@@ -6,44 +6,100 @@ defmodule Log do
   def dataHold() do
     "^"
   end
-
   defmodule Info do
-    defstruct [id: nil, template: "", data: []]
+    defstruct [
+      id: nil, template: "", data: [],
+      toCli: &__MODULE__.toCli/1,
+      lazy: nil,
+      eval: &__MODULE__.eval/1
+    ]
     def new(id \\ nil, template \\  "" , data \\ []) do
       %Info{ id: id, template: template, data: data}
     end
     def toCli(self \\ %Log.Info{}) do
-      self |> Log.cliZipper
+      if not is_nil(self.lazy) do
+        self
+        |> self.eval.()
+      else
+        self
+      end |> Log.cliZipper
     end
+    def lazy(func) do
+      %Info{lazy: func}
+    end
+
+    def eval(lazyLog) do
+      Log.eval(__MODULE__,lazyLog.lazy)
+    end
+
   end
   defmodule Detail do
-    defstruct [id: nil, template: "", data: []]
+    defstruct [
+      id: nil, template: "", data: [],
+      toCli: &__MODULE__.toCli/1,
+      lazy: nil,
+      eval: &__MODULE__.eval/1
+    ]
     def new(id \\ nil, template \\  "" , data \\ []) do
       %Detail{ id: id, template: template, data: data}
     end
     def toCli(self \\ %Log.Detail{}) do
-      %{self | template: "#{IO.ANSI.color(2,2,2)}#{self.template}#{IO.ANSI.reset()}"}
+      if not is_nil(self.lazy) do
+        self
+        |> self.eval.()
+      else
+        %{self | template: "#{IO.ANSI.color(2,2,2)}#{self.template}#{IO.ANSI.reset()}"}
+      end
       |> Log.cliZipper
+    end
+    def eval(func) do
+      Log.eval(__MODULE__,func)
     end
   end
   defmodule Warning do
-    defstruct [id: nil, template: "", data: []]
+    defstruct [
+      id: nil, template: "", data: [],
+      toCli: &__MODULE__.toCli/1,
+      lazy: nil,
+      eval: &__MODULE__.eval/1
+    ]
     def new(id \\ nil, template \\  "" , data \\ []) do
       %Warning{ id: id, template: template, data: data}
     end
     def toCli(self \\ %Log.Warning{}) do
-      %{self | template: "#{IO.ANSI.yellow()}Warning:#{IO.ANSI.reset()} #{self.template}"}
+      if not is_nil(self.lazy) do
+        self
+        |> self.eval.()
+      else
+        %{self | template: "#{IO.ANSI.yellow()}Warning:#{IO.ANSI.reset()} #{self.template}"}
+      end
       |> Log.cliZipper
+    end
+    def eval(func) do
+      Log.eval(__MODULE__,func)
     end
   end
   defmodule Error do
-    defstruct [id: nil,template: "", data: [] ]
+    defstruct [
+      id: nil, template: "", data: [],
+      toCli: &__MODULE__.toCli/1,
+      lazy: nil,
+      eval: &__MODULE__.eval/1
+    ]
     def new(id \\ nil, template \\  "" , data \\ []) do
       %Error{ id: id, template: template, data: data}
     end
     def toCli(self \\ %Log.Error{}) do
-      %{self | template: "#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} #{self.template}"}
+      if not is_nil(self.lazy) do
+        self
+        |> self.eval.()
+      else
+        %{self | template: "#{IO.ANSI.red()}Error:#{IO.ANSI.reset()} #{self.template}"}
+      end
       |> Log.cliZipper
+    end
+    def eval(func) do
+      Log.eval(__MODULE__,func)
     end
   end
 
@@ -61,7 +117,13 @@ defmodule Log do
     res |> Enum.reverse |> Enum.join("")
   end
   def guiInfoDataFormat(input \\ %Log.Info{}) do
-    %{input.id => input.data}
+    if not is_nil(input.lazy) do
+      input
+      |> input.eval.()
+      |> guiInfoDataFormat
+    else
+      %{input.id => input.data}
+    end
   end
   def logLevel(check \\ nil) do
     case {Naas.getConfig("logLevel"),check} do
@@ -97,6 +159,20 @@ defmodule Log do
     end
   end
 
+  def eval(module \\ Log.Info,func \\ nil) do
+    case func do
+      nil -> module.new()
+      _ ->
+        try do
+          {id,template,data} = func.()
+          module.new(id,template,data)
+        rescue
+          _ ->
+          module.new()
+        end
+    end
+  end
+
   def push(self \\ %Log{}, log) do
     %{self | list: [log|self.list]}
   end
@@ -115,18 +191,7 @@ defmodule Log do
       false ->
         self.list
         |> Enum.map(fn l ->
-          case l do
-            %Log.Info{} ->
-              l |> Log.Info.toCli |> IO.puts
-            %Log.Detail{} ->
-              l |> Log.Detail.toCli |> IO.puts
-            %Log.Warning{} ->
-              l |> Log.Warning.toCli |> IO.puts
-            %Log.Error{} ->
-              l |> Log.Error.toCli |> IO.puts
-            _ ->
-              IO.puts "unknown log"
-          end
+          l.toCli.(l) |> IO.puts
         end)
     end
   end
