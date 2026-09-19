@@ -8,6 +8,7 @@ defmodule Minecluster.Mix do
   ]
 
 	defp deps, do: [
+		{:mint, "~> 1.0"}
 	]
 
 	def application, do: [
