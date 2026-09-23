@@ -114,7 +114,7 @@ class NodeSelf(ttk.Frame):
     self.label_nodeself     = ttk.Label(self,text = "Node self",font=(Ste.FONT.value,Ste.FONT_SIZE.value,"bold", 'underline'))
     self.save_nodeself      = ttk.Button(self,text="Save",command=lambda:self.submit(controller))
     self.editcancel_nodeself= ttk.Button(self,text="Edit",command=lambda:self.toggleEdit(controller))
-    self.label_nodeself.grid(row=row.curr(),column=0,sticky="ew",padx=Ste.PAD.value)
+    self.label_nodeself.grid(row=row.curr(),column=0,sticky="nsew",padx=Ste.PAD.value)
     self.save_nodeself.grid(row=row.curr(),column=1,sticky="e",padx=Ste.PAD.value)
     self.save_nodeself.grid_remove()
     self.editcancel_nodeself.grid(row=row.curr(),column=2,sticky="ew",padx=Ste.PAD.value)
@@ -139,6 +139,15 @@ class NodeSelf(ttk.Frame):
     self.label_cookie.grid(row=row.curr(),column=0,sticky="e",padx=Ste.PAD.value)
     self.entry_cookie.grid(row=row.curr(),column=1,sticky="ew",padx=Ste.PAD.value)
     self.showhide_cookie.grid(row=row.curr(),column=2,sticky="ew",padx=Ste.PAD.value)
+    
+    row.next()
+    ## disconnect/stop
+    self.disconnect_nodeself = ttk.Button(self,text="Disconnect",command=lambda:self.submit(controller))
+    self.stop_nodeself       = ttk.Button(self,text="Stop",command=lambda:self.submit(controller))
+    self.disconnect_nodeself.grid(row=row.curr(),column=1,sticky="e",padx=Ste.PAD.value)
+    self.stop_nodeself.grid(row=row.curr(),column=2,sticky="ew",padx=Ste.PAD.value)
+    self.disconnect_nodeself.grid_remove()
+    self.stop_nodeself.grid_remove()
 
   def toggleEdit(self,controller):
     if self.is_editting:
@@ -153,6 +162,9 @@ class NodeSelf(ttk.Frame):
 
       self.entry_address.state(['disabled'])
       self.entry_cookie.state(['disabled'])
+
+      self.disconnect_nodeself.grid_remove()
+      self.stop_nodeself.grid_remove()
     else:
       self.is_editting = True
       self.save_nodeself.grid()
@@ -160,6 +172,9 @@ class NodeSelf(ttk.Frame):
 
       self.entry_address.state(['!disabled'])
       self.entry_cookie.state(['!disabled'])
+
+      self.disconnect_nodeself.grid()
+      self.stop_nodeself.grid() 
 
   def toggleVisibility(self,element):
     if element["show"] == "":
@@ -172,8 +187,85 @@ class NodeSelf(ttk.Frame):
       # node start -a address -c cookie
       print(f">start -a {self.entry_address.get()} -c {self.entry_cookie.get()}")
       self.toggleEdit(controller)
-    
 
+class ConnectNode(ttk.Frame):
+  def __init__(self,parent,controller):
+    # borderwidth => padding
+    # padding => margin
+
+    # Frame's stuff
+    super().__init__(parent, relief= Ste.FRAME_RELIEF.value, padding=Ste.PAD.value)
+    self.grid(row=1, column=0, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
+    self.grid_columnconfigure(index=(1),weight=1)
+
+    row = Row()
+    # form
+    self.label_nodeself     = ttk.Label(self,text = "Connect Node",font=(Ste.FONT.value,Ste.FONT_SIZE.value,"bold", 'underline'))
+    self.label_nodeself.grid(row=row.curr(),column=0,sticky="nsew",padx=Ste.PAD.value)
+
+    row.next()
+    ## Address
+    self.label_address      = ttk.Label(self,text = "Address:")
+    self.entry_address      = ttk.Entry(self)
+    self.connect            = ttk.Button(self,text= "Connect",command=lambda:self.submit(controller))
+    self.label_address.grid(row=row.curr(),column=0,sticky="e",padx=Ste.PAD.value)
+    self.entry_address.grid(row=row.curr(),column=1,sticky="ew",padx=Ste.PAD.value) 
+    self.connect.grid(row=row.curr(),column=2,sticky="ew",padx=Ste.PAD.value) 
+
+  def submit(self,controller):
+    if self.is_editting:
+      # node start -a address -c cookie
+      print(f">connect -a {self.entry_address.get()} -c {self.entry_cookie.get()}")
+    
+class ConnectedList(ttk.Frame):
+  def __init__(self,parent,controller):
+    # borderwidth => padding
+    # padding => margin
+
+    # Frame's stuff
+    super().__init__(parent, relief= Ste.FRAME_RELIEF.value, padding=Ste.PAD.value)
+    self.grid(row=2, column=0, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
+    self.grid_columnconfigure(index=(0),weight=1)
+    self.grid_rowconfigure(index=(0,1),weight=1)
+
+    # title
+    self.label = ttk.Label(self,text = "Nodes connected:",font=(Ste.FONT.value,Ste.FONT_SIZE.value,"bold", 'underline'))
+    self.label.grid(row=0,column=0,sticky="ew",padx=Ste.PAD.value)
+    self.refresh = ttk.Button(self,text = "Refresh",command=lambda:self.refreshList(controller.get("nodeList"),controller))
+    self.refresh.grid(row=0,column=1,sticky="ew",padx=Ste.PAD.value)
+
+
+    # scrollable list ??? 
+    self.frameframe = ScrollableList(self,controller,[i for i in range(30)])
+
+    controller.subscribe("nodeList",lambda data: self.refreshList(data,controller))
+  def refreshList(self,data,controller):
+    self.frameframe.destroy()
+    self.frameframe = ScrollableList(self,controller,data)
+
+class ScrollableList(ttk.Frame):
+  def __init__(self,parent,controller,list):
+    super().__init__(parent)
+    self.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
+    self.grid_columnconfigure(index=(0),weight=1)
+    self.grid_rowconfigure(index=(0),weight=1)
+
+    self.canvas = tk.Canvas(self)
+    self.canvas.grid(row=0,column=0,sticky="nsew")
+    self.scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+    self.scrollbar.grid(row=0,column=1,sticky="nsew")
+    self.canvas.configure(yscrollcommand=self.scrollbar.set)
+    self.frame = ttk.Frame(self.canvas,relief= Ste.FRAME_RELIEF.value, padding=Ste.PAD.value)
+    self.frame.grid(row = 0,column = 0,sticky="nsew")
+    self.canvas.create_window((0, 0), window=self.frame, anchor= "nw")
+    self.frame.bind("<Configure>",lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+    self.listItems(list)
+    
+  def listItems(self,data):
+    row = Row(0)
+    for i in data:
+      ttk.Label(self.frame, text=f"{i}").grid(row=row.curr(),padx=Ste.PAD.value,sticky="ew")
+      row.next()
 
 class MainHome(ttk.Frame):
   def __init__(self,parent,controller):
@@ -181,7 +273,7 @@ class MainHome(ttk.Frame):
     self.id = "home"
     self.grid(row=0, column=0, sticky="nsew")
     self.grid_columnconfigure(index=(0),weight=1)
-    self.grid_columnconfigure(index=(0),weight=1)
+    self.grid_rowconfigure(index=1,weight=1)
     if controller.get("currentTab") != self.id:
       self.grid_remove()
     else:
@@ -192,6 +284,8 @@ class MainHome(ttk.Frame):
 
   def initcontent(self,controller):
     self.nodeself = NodeSelf(self,controller)
+    self.connectNode = ConnectNode(self,controller)
+    self.connected = ConnectedList(self,controller)
 
   def showHideMenu(self,data):
     if data == self.id:

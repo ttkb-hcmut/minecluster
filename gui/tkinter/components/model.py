@@ -45,6 +45,7 @@ class Updater:
   def set(self,field, data):
     with self._lock:
       if field in self.modelFields:
+        print(f"Setting field {field} = {data}")
         setattr(self.model, field, data)
 
         for subscriber in self.subscribers[field]: 
