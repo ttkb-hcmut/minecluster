@@ -5,6 +5,7 @@ import threading
 class Model:
   # GUI specific data fields ====================
   currentTab: str = "home"
+  msgFeed: list = field(default_factory=list)
 
   # Application data fields =====================
   ## config/all
@@ -52,6 +53,20 @@ class Updater:
           subscriber(data)    
       else:
         raise ValueError(f"Unknown datafield '{field}'")
+  
+  def get_and_set(self,field, func = lambda e:e):
+    with self._lock:
+      if field in self.modelFields:
+        old = getattr(self.model, field)
+        print(f"Getting field: {field} = {old}")
+        new = func(old)
+        setattr(self.model, field, new)
+        print(f"Setting field {field} = {new}")
+
+        for subscriber in self.subscribers[field]: 
+          subscriber(new)    
+      else:
+        raise ValueError(f"Unknown datafield '{field}'")
     
   def set_multiple(self, fieldDataList):
     with self._lock:
@@ -72,3 +87,9 @@ class Updater:
         return res
       else:
         raise ValueError(f"Unknown datafield '{field}'")
+      
+  def pushMsgQueue(self,msg):
+    msg = msg.strip()
+    self.get_and_set("msgFeed",
+      lambda old: old + [msg] if len(old)<32 else [i for i in (old[-31:] + [msg])]
+    )

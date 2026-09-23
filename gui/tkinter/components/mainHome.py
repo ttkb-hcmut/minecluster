@@ -105,7 +105,6 @@ class NodeSelf(ttk.Frame):
 
     # Frame's stuff
     super().__init__(parent, relief= Ste.FRAME_RELIEF.value, padding=Ste.PAD.value)
-    self.grid(row=0, column=0, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
     self.grid_columnconfigure(index=(1),weight=1)
 
     row = Row()
@@ -140,6 +139,9 @@ class NodeSelf(ttk.Frame):
     self.entry_cookie.grid(row=row.curr(),column=1,sticky="ew",padx=Ste.PAD.value)
     self.showhide_cookie.grid(row=row.curr(),column=2,sticky="ew",padx=Ste.PAD.value)
     
+    self.entry_address.bind("<Return>",lambda e: self.entry_cookie.focus_set())
+    self.entry_cookie.bind("<Return>",lambda e: self.submit(controller))
+
     row.next()
     ## disconnect/stop
     self.disconnect_nodeself = ttk.Button(self,text="Disconnect",command=lambda:self.submit(controller))
@@ -195,7 +197,6 @@ class ConnectNode(ttk.Frame):
 
     # Frame's stuff
     super().__init__(parent, relief= Ste.FRAME_RELIEF.value, padding=Ste.PAD.value)
-    self.grid(row=1, column=0, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
     self.grid_columnconfigure(index=(1),weight=1)
 
     row = Row()
@@ -207,6 +208,7 @@ class ConnectNode(ttk.Frame):
     ## Address
     self.label_address      = ttk.Label(self,text = "Address:")
     self.entry_address      = ttk.Entry(self)
+    self.entry_address.bind("<Return>",lambda e: self.submit(controller))
     self.connect            = ttk.Button(self,text= "Connect",command=lambda:self.submit(controller))
     self.label_address.grid(row=row.curr(),column=0,sticky="e",padx=Ste.PAD.value)
     self.entry_address.grid(row=row.curr(),column=1,sticky="ew",padx=Ste.PAD.value) 
@@ -224,7 +226,6 @@ class ConnectedList(ttk.Frame):
 
     # Frame's stuff
     super().__init__(parent, relief= Ste.FRAME_RELIEF.value, padding=Ste.PAD.value)
-    self.grid(row=2, column=0, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
     self.grid_columnconfigure(index=(0),weight=1)
     self.grid_rowconfigure(index=(0,1),weight=1)
 
@@ -236,17 +237,57 @@ class ConnectedList(ttk.Frame):
 
 
     # scrollable list ??? 
-    self.frameframe = ScrollableList(self,controller,[i for i in range(30)])
+    self.list = ScrollableList(self,controller,controller.get("nodeList"))
+    self.list.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
 
     controller.subscribe("nodeList",lambda data: self.refreshList(data,controller))
   def refreshList(self,data,controller):
-    self.frameframe.destroy()
-    self.frameframe = ScrollableList(self,controller,data)
+    self.list.destroy()
+    self.list = ScrollableList(self,controller,data)
+    self.list.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
+    
+class ChatWindow(ttk.Frame):
+  def __init__(self,parent,controller):
+    # borderwidth => padding
+    # padding => margin
+
+    # Frame's stuff
+    super().__init__(parent, relief= Ste.FRAME_RELIEF.value, padding=Ste.PAD.value)
+    self.grid_columnconfigure(index=(0),weight=1)
+    self.grid_rowconfigure(index=(0),weight=1)
+
+    # title
+    self.label = ttk.Label(self,text = "Chat:",font=(Ste.FONT.value,Ste.FONT_SIZE.value,"bold", 'underline'))
+    self.label.grid(row=0,column=0,columnspan=2,sticky="ew",padx=Ste.PAD.value)
+
+
+    # scrollable list ??? 
+    self.list = ScrollableList(self,controller,controller.get("msgFeed"),"sw")
+    self.list.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
+
+
+    self.entry = ttk.Entry(self)
+    self.entry.grid(row=2,column=0,sticky="nsew",padx=Ste.PAD.value)
+    self.entry.bind("<Return>",lambda e: self.submit(controller))
+    self.enter = ttk.Button(self,text="Send",command=lambda: self.submit(controller))
+    self.enter.grid(row=2,column=1,sticky="ns",padx=Ste.PAD.value)
+
+    controller.subscribe("msgFeed",lambda data: self.refreshList(data,controller))
+  def refreshList(self,data,controller):
+    is_at_bottom = self.list.canvas.yview()[1] == 1.0
+    self.list.destroy()
+    self.list = ScrollableList(self,controller,data,toBottom = is_at_bottom)
+    self.list.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
+  def submit(self,controller):
+    self.entry.focus_set()
+    msg = self.entry.get().strip()
+    if msg != "":
+      controller.pushMsgQueue(f"You> {msg}")
+    self.entry.delete(0,"end")
 
 class ScrollableList(ttk.Frame):
-  def __init__(self,parent,controller,list):
+  def __init__(self,parent,controller,list,toBottom = False):
     super().__init__(parent)
-    self.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
     self.grid_columnconfigure(index=(0),weight=1)
     self.grid_rowconfigure(index=(0),weight=1)
 
@@ -258,7 +299,7 @@ class ScrollableList(ttk.Frame):
     self.frame = ttk.Frame(self.canvas,relief= Ste.FRAME_RELIEF.value, padding=Ste.PAD.value)
     self.frame.grid(row = 0,column = 0,sticky="nsew")
     self.canvas.create_window((0, 0), window=self.frame, anchor= "nw")
-    self.frame.bind("<Configure>",lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+    self.frame.bind("<Configure>",lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")) or (self.canvas.yview_moveto(1.0) if toBottom else False))
     self.listItems(list)
     
   def listItems(self,data):
@@ -266,13 +307,15 @@ class ScrollableList(ttk.Frame):
     for i in data:
       ttk.Label(self.frame, text=f"{i}").grid(row=row.curr(),padx=Ste.PAD.value,sticky="ew")
       row.next()
+    
 
 class MainHome(ttk.Frame):
   def __init__(self,parent,controller):
     super().__init__(parent)
     self.id = "home"
     self.grid(row=0, column=0, sticky="nsew")
-    self.grid_columnconfigure(index=(0),weight=1)
+    self.grid_columnconfigure(index=(0),weight=2)
+    self.grid_columnconfigure(index=(1),weight=1)
     self.grid_rowconfigure(index=1,weight=1)
     if controller.get("currentTab") != self.id:
       self.grid_remove()
@@ -284,8 +327,13 @@ class MainHome(ttk.Frame):
 
   def initcontent(self,controller):
     self.nodeself = NodeSelf(self,controller)
+    self.nodeself.grid(row=0, column=0, columnspan=2, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
     self.connectNode = ConnectNode(self,controller)
+    self.connectNode.grid(row=1, column=0, columnspan=2, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
+    self.chat = ChatWindow(self,controller)
+    self.chat.grid(row=2, column=0, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
     self.connected = ConnectedList(self,controller)
+    self.connected.grid(row=2, column=1, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
 
   def showHideMenu(self,data):
     if data == self.id:
