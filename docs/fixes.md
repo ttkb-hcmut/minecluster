@@ -1,0 +1,2 @@
+ - <C-a> text in entry doesn't work on Linux
+ - Pink button highlights are inconsistent between platforms
