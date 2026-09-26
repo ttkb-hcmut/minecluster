@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 class GuiApp:
+
   def __init__(self, root):
     self.root = root
     self.root.title("Python GUI to Elixir")
@@ -61,9 +62,6 @@ class GuiApp:
         self.root.after(0, self.update_ui, received)
       except Exception as e:
         self.root.after(0, self.update_ui, f"Error: {e}")
-
-        
-
 
   def send_data(self):
     api = self.entry.get()
