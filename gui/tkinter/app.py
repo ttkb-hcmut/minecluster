@@ -14,6 +14,7 @@ class App(tk.Tk):
     self.backgroundColor = ttk.Label(self,background= "#ffffff").grid(row=0, column=0, rowspan=2, sticky="nsew")
     self.tabsBar = TabsBar(self,controller)
     self.main = Main(self,controller)
+    
     self.mainloop()
 
 class Main(ttk.Frame):
@@ -21,7 +22,7 @@ class Main(ttk.Frame):
     super().__init__(parent)
     self.grid(row=1, column=0, sticky="nsew")
     self.columnconfigure(index=(0),weight=1)
-    self.rowconfigure(index=(1),weight=1)
+    self.rowconfigure(index=(0),weight=1)
     # self.backgroundColor = ttk.Label(self,background= "#ff0000").pack(expand= True, fill = "both")
     self.mainHome = mainHome.MainHome(self,controller)
     mainGroup = MainTab(self,controller,"group")

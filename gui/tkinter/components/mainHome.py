@@ -227,7 +227,7 @@ class ConnectedList(ttk.Frame):
     # Frame's stuff
     super().__init__(parent, relief= Ste.FRAME_RELIEF.value, padding=Ste.PAD.value)
     self.grid_columnconfigure(index=(0),weight=1)
-    self.grid_rowconfigure(index=(0,1),weight=1)
+    self.grid_rowconfigure(index=(1),weight=1)
 
     # title
     self.label = ttk.Label(self,text = "Nodes connected:",font=(Ste.FONT.value,Ste.FONT_SIZE.value,"bold", 'underline'))
@@ -254,7 +254,7 @@ class ChatWindow(ttk.Frame):
     # Frame's stuff
     super().__init__(parent, relief= Ste.FRAME_RELIEF.value, padding=Ste.PAD.value)
     self.grid_columnconfigure(index=(0),weight=1)
-    self.grid_rowconfigure(index=(0),weight=1)
+    self.grid_rowconfigure(index=(1),weight=1)
 
     # title
     self.label = ttk.Label(self,text = "Chat:",font=(Ste.FONT.value,Ste.FONT_SIZE.value,"bold", 'underline'))
@@ -262,7 +262,7 @@ class ChatWindow(ttk.Frame):
 
 
     # scrollable list ??? 
-    self.list = ScrollableList(self,controller,controller.get("msgFeed"),"sw")
+    self.list = ScrollableList(self,controller,controller.get("msgFeed"))
     self.list.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
 
 
@@ -291,22 +291,33 @@ class ScrollableList(ttk.Frame):
     self.grid_columnconfigure(index=(0),weight=1)
     self.grid_rowconfigure(index=(0),weight=1)
 
-    self.canvas = tk.Canvas(self)
+
+    self.canvas = tk.Canvas(self,width=0,height=0)
     self.canvas.grid(row=0,column=0,sticky="nsew")
+    self.canvas.grid_rowconfigure(index=0,weight=1)
+    self.canvas.grid_columnconfigure(index=0,weight=1)
     self.scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
     self.scrollbar.grid(row=0,column=1,sticky="nsew")
     self.canvas.configure(yscrollcommand=self.scrollbar.set)
     self.frame = ttk.Frame(self.canvas,relief= Ste.FRAME_RELIEF.value, padding=Ste.PAD.value)
     self.frame.grid(row = 0,column = 0,sticky="nsew")
+    self.frame.grid_columnconfigure(index=0,weight=1)
     self.canvas.create_window((0, 0), window=self.frame, anchor= "nw")
     self.frame.bind("<Configure>",lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")) or (self.canvas.yview_moveto(1.0) if toBottom else False))
-    self.listItems(list)
+
+    li = self.listItems(list)
+
+    self.canvas.bind("<Configure>", lambda event: [i.configure(wraplength=event.width - self.scrollbar.winfo_width()) for i in li])
     
   def listItems(self,data):
     row = Row(0)
+    iterable = []
     for i in data:
-      ttk.Label(self.frame, text=f"{i}").grid(row=row.curr(),padx=Ste.PAD.value,sticky="ew")
+      a = ttk.Label(self.frame, text=f"{i}",justify="left")
+      a.grid(row=row.curr(),column=0,padx=Ste.PAD.value,sticky="ew")
+      iterable.append(a)
       row.next()
+    return iterable
     
 
 class MainHome(ttk.Frame):
@@ -316,7 +327,7 @@ class MainHome(ttk.Frame):
     self.grid(row=0, column=0, sticky="nsew")
     self.grid_columnconfigure(index=(0),weight=2)
     self.grid_columnconfigure(index=(1),weight=1)
-    self.grid_rowconfigure(index=1,weight=1)
+    self.grid_rowconfigure(index=(2),weight=1)
     if controller.get("currentTab") != self.id:
       self.grid_remove()
     else:
