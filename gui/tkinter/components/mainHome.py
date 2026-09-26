@@ -3,7 +3,7 @@ from tkinter import ttk
 from components import model
 from components.stylingHelper import StyleEnum as Ste
 from components.stylingHelper import RowTracker as Row
-
+from .things import ScrollableList
 
 # class Connection(ttk.Frame):
 #   def __init__(self,parent,controller):
@@ -262,7 +262,7 @@ class ChatWindow(ttk.Frame):
 
 
     # scrollable list ??? 
-    self.list = ScrollableList(self,controller,controller.get("msgFeed"))
+    self.list = ScrollableList(self,controller,controller.get("msgFeed"),stickToBottom=True)
     self.list.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
 
 
@@ -274,10 +274,11 @@ class ChatWindow(ttk.Frame):
 
     controller.subscribe("msgFeed",lambda data: self.refreshList(data,controller))
   def refreshList(self,data,controller):
-    is_at_bottom = self.list.canvas.yview()[1] == 1.0
-    self.list.destroy()
-    self.list = ScrollableList(self,controller,data,toBottom = is_at_bottom)
-    self.list.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
+    self.list.set(data)
+    # is_at_bottom = self.list.getBottom()
+    # self.list.destroy()
+    # self.list = ScrollableList(self,controller,data,toBottom = is_at_bottom)
+    # self.list.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
   def submit(self,controller):
     self.entry.focus_set()
     msg = self.entry.get().strip()
@@ -285,40 +286,6 @@ class ChatWindow(ttk.Frame):
       controller.pushMsgQueue(f"You> {msg}")
     self.entry.delete(0,"end")
 
-class ScrollableList(ttk.Frame):
-  def __init__(self,parent,controller,list,toBottom = False):
-    super().__init__(parent)
-    self.grid_columnconfigure(index=(0),weight=1)
-    self.grid_rowconfigure(index=(0),weight=1)
-
-
-    self.canvas = tk.Canvas(self,width=0,height=0)
-    self.canvas.grid(row=0,column=0,sticky="nsew")
-    self.canvas.grid_rowconfigure(index=0,weight=1)
-    self.canvas.grid_columnconfigure(index=0,weight=1)
-    self.scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
-    self.scrollbar.grid(row=0,column=1,sticky="nsew")
-    self.canvas.configure(yscrollcommand=self.scrollbar.set)
-    self.frame = ttk.Frame(self.canvas,relief= Ste.FRAME_RELIEF.value, padding=Ste.PAD.value)
-    self.frame.grid(row = 0,column = 0,sticky="nsew")
-    self.frame.grid_columnconfigure(index=0,weight=1)
-    self.canvas.create_window((0, 0), window=self.frame, anchor= "nw")
-    self.frame.bind("<Configure>",lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")) or (self.canvas.yview_moveto(1.0) if toBottom else False))
-
-    li = self.listItems(list)
-
-    self.canvas.bind("<Configure>", lambda event: [i.configure(wraplength=event.width - self.scrollbar.winfo_width()) for i in li])
-    
-  def listItems(self,data):
-    row = Row(0)
-    iterable = []
-    for i in data:
-      a = ttk.Label(self.frame, text=f"{i}",justify="left")
-      a.grid(row=row.curr(),column=0,padx=Ste.PAD.value,sticky="ew")
-      iterable.append(a)
-      row.next()
-    return iterable
-    
 
 class MainHome(ttk.Frame):
   def __init__(self,parent,controller):

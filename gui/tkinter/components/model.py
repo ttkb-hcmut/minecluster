@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field, fields
-
+_LOGGING = False
 import threading
 @dataclass
 class Model:
@@ -29,7 +29,7 @@ class Updater:
   def __init__(self):
     self._lock = threading.Lock()
     self.model = Model()
-    print(f"started up with {getattr(self.model, "currentTab")}")
+    print(f"started up with {getattr(self.model, "currentTab")}") if _LOGGING else None
     self.subscribers = {}
     self.modelFields = list(map(lambda e: e.name, fields(Model)))
     for field in self.modelFields:
@@ -37,7 +37,7 @@ class Updater:
 
   def subscribe(self,field,func):
     self.subscribers[field] = self.subscribers[field] + [func]
-    print(f"{field} -> {func}")
+    print(f"{field} -> {func}") if _LOGGING else None
 
   def sendFetch(self,api):
     #send data
@@ -46,7 +46,7 @@ class Updater:
   def set(self,field, data):
     with self._lock:
       if field in self.modelFields:
-        print(f"Setting field {field} = {data}")
+        print(f"Setting field {field} = {data}") if _LOGGING else None
         setattr(self.model, field, data)
 
         for subscriber in self.subscribers[field]: 
@@ -58,10 +58,10 @@ class Updater:
     with self._lock:
       if field in self.modelFields:
         old = getattr(self.model, field)
-        print(f"Getting field: {field} = {old}")
+        print(f"Getting field: {field} = {old}") if _LOGGING else None
         new = func(old)
         setattr(self.model, field, new)
-        print(f"Setting field {field} = {new}")
+        print(f"Setting field {field} = {new}") if _LOGGING else None
 
         for subscriber in self.subscribers[field]: 
           subscriber(new)    
@@ -83,7 +83,7 @@ class Updater:
     with self._lock:
       if field in self.modelFields:
         res = getattr(self.model, field)
-        print(f"Getting field: {field} = {res}")
+        print(f"Getting field: {field} = {res}") if _LOGGING else None
         return res
       else:
         raise ValueError(f"Unknown datafield '{field}'")
