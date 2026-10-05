@@ -3,7 +3,7 @@ defmodule Wit do
     IO.puts("Elixir server listening on port #{serverPort}...")
     {:ok, gtsSocket} = :gen_tcp.listen(serverPort, [:binary, packet: :line, active: false, reuseaddr: true])
     Task.start_link(fn ->
-      System.cmd(System.find_executable("py"),
+      System.cmd(System.find_executable("python"),
         [
           "-u","./gui/tkinter/test.py",
           "--sport", "#{serverPort}",
