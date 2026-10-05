@@ -283,7 +283,7 @@ class ChatWindow(ttk.Frame):
     self.entry.focus_set()
     msg = self.entry.get().strip()
     if msg != "":
-      controller.pushMsgQueue(f"You> {msg}")
+      controller.pushMsgQueue(msg)
     self.entry.delete(0,"end")
 
 

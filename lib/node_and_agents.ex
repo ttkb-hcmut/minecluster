@@ -46,6 +46,7 @@ defmodule Naas do
           _ ->
             l |> Log.info("#{IO.ANSI.green()}#{Log.dataHold} - #{Log.dataHold}: #{Log.dataHold}#{IO.ANSI.reset()}",[src,group,msg], "message")
         end end)
+        IO.inspect log
         log |> Log.flush
         log |> Log.flush(true) |> Wit.pushToGui
 

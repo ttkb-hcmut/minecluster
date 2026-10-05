@@ -29,6 +29,7 @@ class Updater:
   def __init__(self):
     self._lock = threading.Lock()
     self.model = Model()
+    self.pushFunc = lambda a: print(f"Unbinded push func recieved:",a)
     print(f"started up with {getattr(self.model, "currentTab")}") if _LOGGING else None
     self.subscribers = {}
     self.modelFields = list(map(lambda e: e.name, fields(Model)))
@@ -39,9 +40,23 @@ class Updater:
     self.subscribers[field] = self.subscribers[field] + [func]
     print(f"{field} -> {func}") if _LOGGING else None
 
-  def sendFetch(self,api):
-    #send data
+  def setPushToServer(self,func):
+    self.pushFunc = func
+
+  def sendFetch(self,api,data):
+    message = {}
+    message[api] = data
+    print(message)
+    self.pushFunc(message)
     pass
+
+  def handleIncoming(self,data):
+    for key in data.keys():
+      if key == "message":
+        [sender, group, message] = data[key]
+        self.pushMsgQueue(message,sender=sender)
+
+
 
   def set(self,field, data):
     with self._lock:
@@ -88,8 +103,15 @@ class Updater:
       else:
         raise ValueError(f"Unknown datafield '{field}'")
       
-  def pushMsgQueue(self,msg):
-    msg = msg.strip()
-    self.get_and_set("msgFeed",
-      lambda old: old + [msg] if len(old)<32 else [i for i in (old[-31:] + [msg])]
-    )
+  def pushMsgQueue(self,msg,sender = None):
+    if sender is None:
+      youmsg = f"You> {msg.strip()}"
+      self.get_and_set("msgFeed",
+        lambda old: old + [youmsg] if len(old)<32 else [i for i in (old[-31:] + [youmsg])]
+      )
+      self.sendFetch("command",["msg",msg])
+    else:
+      fullmsg = f"{sender}:{msg}"
+      self.get_and_set("msgFeed",
+        lambda old: old + [fullmsg] if len(old)<32 else [i for i in (old[-31:] + [fullmsg])]
+      )

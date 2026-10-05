@@ -1,11 +1,23 @@
 defmodule Wit do
-  def start(serverPort \\ 4000,guiPort \\ 4001) do
-    IO.puts("Elixir server listening on port #{serverPort}...")
-    {:ok, gtsSocket} = :gen_tcp.listen(serverPort, [:binary, packet: :line, active: false, reuseaddr: true])
+  def getFreePort do
+    {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(socket)
+    :gen_tcp.close(socket)
+    port
+  end
+  def start(serverPort \\ nil,guiPort \\ nil) do
+    {serverPort,guiPort} = case {serverPort,guiPort} do
+      {nil,nil} -> {getFreePort(),getFreePort()}
+      {nil,g} -> {getFreePort(),g}
+      {s,nil} -> {s,getFreePort()}
+      {s,g} -> {s,g}
+    end
+    {:ok,gtsSocket} = :gen_tcp.listen(serverPort, [:binary, packet: :line, active: false, reuseaddr: true])
+    IO.puts("Elixir server listening on port #{serverPort}")
     Task.start_link(fn ->
       System.cmd(System.find_executable("py"),
         [
-          "-u","./gui/tkinter/test.py",
+          "-u","./gui/tkinter/app.py",
           "--sport", "#{serverPort}",
           "--gport", "#{guiPort}",
         ])
@@ -13,6 +25,7 @@ defmodule Wit do
     Process.spawn(fn -> Wit.listenServer(gtsSocket) end, [:link])
     Process.sleep(1000)
     {:ok, stgSocket} = :gen_tcp.connect(:localhost,guiPort, [:binary, packet: :line, active: false, reuseaddr: true])
+    IO.puts("Elixir server sending on port #{guiPort}...")
     Agent.update(:push_server, fn _ -> Process.spawn(fn -> Wit.pushServer(stgSocket) end, [:link]) end)
   end
 
@@ -48,12 +61,16 @@ defmodule Wit do
   end
 
   def listenServer(socket) do
-    {:ok, client} = :gen_tcp.accept(socket)
-    spawn(fn -> handleRequest(client) end)
-    listenServer(socket)
+    case :gen_tcp.accept(socket) do
+      {:ok, client} ->
+        spawn(fn -> handleRequest(client,socket) end)
+        listenServer(socket)
+      {:error, :closed} ->
+        Cli.detail("Closing GUI socket")
+    end
   end
 
-  def handleRequest(client) do
+  def handleRequest(client,socket) do
     case :gen_tcp.recv(client, 0) do
       {:ok, data} ->
         Log.detail(nil,data)
@@ -74,9 +91,10 @@ defmodule Wit do
           _ ->
           %{"success" => false} |> JSON.encode!
         end
-        handleRequest(client)
+        handleRequest(client,socket)
       {:error, :closed} ->
         IO.puts("GUI disconnected.")
+        :ok = :gen_tcp.close(socket)
     end
   end
 
