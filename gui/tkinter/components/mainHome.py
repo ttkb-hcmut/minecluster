@@ -4,98 +4,6 @@ from components import model
 from components.stylingHelper import StyleEnum as Ste
 from components.stylingHelper import RowTracker as Row
 from .things import ScrollableList
-
-# class Connection(ttk.Frame):
-#   def __init__(self,parent,controller):
-#     super().__init__(parent)
-#     self.grid(row=0, column=0, sticky="nsew")
-#     self.grid_columnconfigure(index=(2),weight=1)
-
-#     # connect node
-#     self.is_editting = False
-#     self.label_nodeself     = ttk.Label(self,text = "Node self:")
-#     self.save_nodeself      = ttk.Button(self,text="Save",command=lambda:self.submit(controller),padding=(5,0))
-#     self.editcancel_nodeself= ttk.Button(self,text="Edit",command=lambda:self.toggleEdit(controller),padding=(5,0))
-#     self.label_nodeself.grid(row=0,column=0,sticky="w")
-#     self.save_nodeself.grid(row=0,column=1,sticky="e")
-#     self.save_nodeself.grid_remove()
-#     self.editcancel_nodeself.grid(row=0,column=2,sticky="w")
-
-#     ## Address
-#     self.label_address      = ttk.Label(self,text = "Address:",padding=(5,0))
-#     self.entry_address      = ttk.Entry(self)
-#     self.entry_address.insert(0, controller.get("selfAddress"))
-#     self.entry_address.state(['disabled'])
-#     self.label_address.grid(row=1,column=0,sticky="e")
-#     self.entry_address.grid(row=1,column=1,sticky="ew")
-    
-#     ## Cookie
-#     self.label_cookie       = ttk.Label(self,text = "Cookie:",padding=(5,0))
-#     self.showhide_cookie    = ttk.Button(self,text="Toggle visible", command= lambda: self.toggleVisibility(self.entry_cookie),padding=(5,0))
-#     self.entry_cookie       = ttk.Entry(self,show="*")
-#     self.entry_cookie.insert(0, controller.get("selfCookie"))
-#     self.entry_cookie.state(['disabled'])
-#     self.label_cookie.grid(row=2,column=0,sticky="e")
-#     self.entry_cookie.grid(row=2,column=1,sticky="ew")
-#     self.showhide_cookie.grid(row=2,column=2,sticky="w")
-
-#     # connect group
-#     self.is_editting = False
-#     self.label_nodeself     = ttk.Label(self,text = "Node self:",padding=(5,0))
-#     self.save_nodeself      = ttk.Button(self,text="Save",command=lambda:self.submit(controller),padding=(5,0))
-#     self.editcancel_nodeself= ttk.Button(self,text="Edit",command=lambda:self.toggleEdit(controller),padding=(5,0))
-#     self.label_nodeself.grid(row=0,column=0,sticky="w")
-#     self.save_nodeself.grid(row=0,column=1,sticky="e")
-#     self.save_nodeself.grid_remove()
-#     self.editcancel_nodeself.grid(row=0,column=2,sticky="w")
-
-#     ## Address
-#     self.label_address      = ttk.Label(self,text = "Address:",padding=(5,0))
-#     self.entry_address      = ttk.Entry(self)
-#     self.entry_address.insert(0, controller.get("selfAddress"))
-#     self.entry_address.state(['disabled'])
-#     self.label_address.grid(row=1,column=0,sticky="e")
-#     self.entry_address.grid(row=1,column=1,sticky="w")
-    
-#     ## Cookie
-#     self.label_cookie       = ttk.Label(self,text = "Cookie:",padding=(5,0))
-#     self.showhide_cookie    = ttk.Button(self,text="Toggle visible", command= lambda: self.toggleVisibility(self.entry_cookie),padding=(5,0))
-#     self.entry_cookie       = ttk.Entry(self,show="*")
-#     self.entry_cookie.insert(0, controller.get("selfCookie"))
-#     self.entry_cookie.state(['disabled'])
-#     self.label_cookie.grid(row=2,column=0,sticky="e")
-#     self.entry_cookie.grid(row=2,column=1,sticky="w")
-#     self.showhide_cookie.grid(row=2,column=2,sticky="w")
-
-#   def toggleEdit(self,controller):
-#     if self.is_editting:
-#       self.is_editting = False
-#       self.save_nodeself.grid_remove()
-#       self.editcancel_nodeself.configure(text = "Edit")
-#       self.entry_address.delete(0,"end")
-#       self.entry_cookie.delete(0,"end")
-#       self.entry_address.insert(0, controller.get("selfAddress"))
-#       self.entry_cookie.insert(0, controller.get("selfCookie"))
-#       self.entry_address.state(['disabled'])
-#       self.entry_cookie.state(['disabled'])
-#     else:
-#       self.is_editting = True
-#       self.save_nodeself.grid()
-#       self.editcancel_nodeself.configure(text = "Cancel")
-#       self.entry_address.state(['!disabled'])
-#       self.entry_cookie.state(['!disabled'])
-
-#   def toggleVisibility(self,element):
-#     if element["show"] == "":
-#       element.configure(show="*")
-#     else:
-#       element.configure(show="")
-
-#   def submit(self,controller):
-#     if self.is_editting:
-#       # node start -a address -c cookie
-#       print(f">start -a {self.entry_address.get()} -c {self.entry_cookie.get()}")
-#       self.toggleEdit(controller)
     
 
 class NodeSelf(ttk.Frame):
@@ -144,12 +52,23 @@ class NodeSelf(ttk.Frame):
 
     row.next()
     ## disconnect/stop
-    self.disconnect_nodeself = ttk.Button(self,text="Disconnect",command=lambda:self.submit(controller))
-    self.stop_nodeself       = ttk.Button(self,text="Stop",command=lambda:self.submit(controller))
+    self.disconnect_nodeself = ttk.Button(self,text="Disconnect",command=lambda:self.disconnect(controller))
+    self.stop_nodeself       = ttk.Button(self,text="Stop",command=lambda:self.stop(controller))
     self.disconnect_nodeself.grid(row=row.curr(),column=1,sticky="e",padx=Ste.PAD.value)
     self.stop_nodeself.grid(row=row.curr(),column=2,sticky="ew",padx=Ste.PAD.value)
     self.disconnect_nodeself.grid_remove()
     self.stop_nodeself.grid_remove()
+
+    controller.subscribe("selfAddress",lambda data: self.setDefault(self.entry_address,data))
+    controller.subscribe("selfCookie",lambda data: self.setDefault(self.entry_cookie,data))
+    self.fetchSelf(controller)
+
+  def setDefault(self,element,data):
+    element.state(['!disabled'])
+    element.delete(0,"end")
+    element.insert(0, data)
+    if not self.is_editting:
+      element.state(['disabled'])
 
   def toggleEdit(self,controller):
     if self.is_editting:
@@ -184,11 +103,29 @@ class NodeSelf(ttk.Frame):
     else:
       element.configure(show="")
 
-  def submit(self,controller):
+  def fetchSelf(self,controller:model.Updater):
+    controller.sendFetch("api","self")
+
+  def disconnect(self,controller:model.Updater):
+    controller.sendFetch("command",["disconnect"])
+    self.toggleEdit(controller)
+    self.fetchSelf(controller)
+  def stop(self,controller:model.Updater):
+    controller.sendFetch("command",["stop"])
+    self.toggleEdit(controller)
+    self.fetchSelf(controller)
+
+  def submit(self,controller:model.Updater):
     if self.is_editting:
-      # node start -a address -c cookie
-      print(f">start -a {self.entry_address.get()} -c {self.entry_cookie.get()}")
-      self.toggleEdit(controller)
+      address = self.entry_address.get()
+      cookie = self.entry_cookie.get()
+      command = ["start"]
+      command += ["-a", address] if address != "" else []
+      command += ["-c", cookie ] if cookie  != "" else []
+
+      controller.sendFetch("command",command)
+    self.fetchSelf(controller)
+    self.toggleEdit(controller)
 
 class ConnectNode(ttk.Frame):
   def __init__(self,parent,controller):
@@ -214,10 +151,9 @@ class ConnectNode(ttk.Frame):
     self.entry_address.grid(row=row.curr(),column=1,sticky="ew",padx=Ste.PAD.value) 
     self.connect.grid(row=row.curr(),column=2,sticky="ew",padx=Ste.PAD.value) 
 
-  def submit(self,controller):
-    if self.is_editting:
-      # node start -a address -c cookie
-      print(f">connect -a {self.entry_address.get()} -c {self.entry_cookie.get()}")
+  def submit(self,controller: model.Updater):
+    controller.sendFetch("command",["connect",self.entry_address.get(),controller.get("selfCookie")])
+    self.entry_address.delete(0,"end")
     
 class ConnectedList(ttk.Frame):
   def __init__(self,parent,controller):
@@ -232,7 +168,7 @@ class ConnectedList(ttk.Frame):
     # title
     self.label = ttk.Label(self,text = "Nodes connected:",font=(Ste.FONT.value,Ste.FONT_SIZE.value,"bold", 'underline'))
     self.label.grid(row=0,column=0,sticky="ew",padx=Ste.PAD.value)
-    self.refresh = ttk.Button(self,text = "Refresh",command=lambda:self.refreshList(controller.get("nodeList"),controller))
+    self.refresh = ttk.Button(self,text = "Refresh",command=lambda:self.fetchList(controller))
     self.refresh.grid(row=0,column=1,sticky="ew",padx=Ste.PAD.value)
 
 
@@ -242,9 +178,10 @@ class ConnectedList(ttk.Frame):
 
     controller.subscribe("nodeList",lambda data: self.refreshList(data,controller))
   def refreshList(self,data,controller):
-    self.list.destroy()
-    self.list = ScrollableList(self,controller,data)
-    self.list.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
+    self.list.set(data)
+    
+  def fetchList(self,controller):
+    controller.sendFetch("api","list")
     
 class ChatWindow(ttk.Frame):
   def __init__(self,parent,controller):

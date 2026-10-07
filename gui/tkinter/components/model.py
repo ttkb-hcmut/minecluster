@@ -55,7 +55,8 @@ class Updater:
       if key == "message":
         [sender, group, message] = data[key]
         self.pushMsgQueue(message,sender=sender)
-
+      else:
+        self.set(key, data[key])
 
 
   def set(self,field, data):
