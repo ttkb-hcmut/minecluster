@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field, fields
-_LOGGING = False
 import threading
+
+_LOGGING = False
+
 @dataclass
 class Model:
   # GUI specific data fields ====================
