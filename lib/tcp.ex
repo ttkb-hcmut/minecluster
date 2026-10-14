@@ -1,7 +1,7 @@
 defmodule Wit do
   def getFreePort do
     {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
-    {:ok, port} = :inet.port(socket)
+    {:ok, port}   = :inet.port(socket)
     :gen_tcp.close(socket)
     port
   end
@@ -9,9 +9,9 @@ defmodule Wit do
   def start1(serverPort \\ nil,guiPort \\ nil) do
     {serverPort,guiPort} = case {serverPort,guiPort} do
       {nil,nil} -> {getFreePort(),getFreePort()}
-      {nil,g} -> {getFreePort(),g}
-      {s,nil} -> {s,getFreePort()}
-      {s,g} -> {s,g}
+      {nil,g}   -> {getFreePort(),g}
+      {s,nil}   -> {s,getFreePort()}
+      {s,g}     -> {s,g}
     end
     {:ok,gtsSocket} = :gen_tcp.listen(serverPort, [:binary, packet: :line, active: false, reuseaddr: true])
     IO.puts("Elixir server listening on port #{serverPort}")
