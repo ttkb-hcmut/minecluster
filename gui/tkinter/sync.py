@@ -14,8 +14,8 @@ class ServerGUISocket():
     self.hkind = args.hkind
     if self.hkind == "coco":
       self.socketkind = socket.AF_INET
-      self.sport = int(args.sport)
-      self.gport = int(args.gport)
+      self.sport = ("localhost", int(args.sport))
+      self.gport = ("localhost", int(args.gport))
     elif self.hkind == "agott":
       self.socketkind = socket.AF_UNIX
       self.sport = args.sport
