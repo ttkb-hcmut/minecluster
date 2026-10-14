@@ -2,25 +2,25 @@ import gi, functools
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Gtk, Adw
+from gi.repository import (Gtk as tk, Adw as ttk)
 
 from components import model
 from components.otherHelper import start
 
 @functools.cache
 def views_switching(with_ctrl : model.Updater):
-  menu = Gtk.Popover()
+  menu = tk.Popover()
   menu.add_css_class('viewswitching')
-  pack = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+  pack = tk.Box(orientation=tk.Orientation.VERTICAL)
   pack.set_size_request(150, -1)
 
   def item(id, *, name=None):
     assert name is not None
-    btn = Gtk.Button()
+    btn = tk.Button()
     def activate(_): with_ctrl.set("currentTab", id)
     btn.connect('clicked', activate)
-    pack = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, halign=Gtk.Align.CENTER)
-    pack.append(Gtk.Label(label=name))
+    pack = tk.Box(orientation=tk.Orientation.HORIZONTAL, halign=tk.Align.CENTER)
+    pack.append(tk.Label(label=name))
     btn.set_child(pack)
     btn.add_css_class("i77")
     return btn
@@ -35,24 +35,24 @@ def views_switching(with_ctrl : model.Updater):
   return menu
 
 def home(with_ctrl : model.Updater):
-  spl = Adw.OverlaySplitView(sidebar_position=Gtk.PackType.END)
-  chat = Gtk.Box()
+  spl = ttk.OverlaySplitView(sidebar_position=tk.PackType.END)
+  chat = tk.Box()
   spl.set_sidebar(chat)
-  main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+  main = tk.Box(orientation=tk.Orientation.VERTICAL, spacing=0)
   spl.set_content(main)
-  headerbar = Adw.HeaderBar()
+  headerbar = ttk.HeaderBar()
   headerbar.add_css_class("transparent")
   main.append(headerbar)
-  title = Adw.WindowTitle(title="Waiting")
+  title = ttk.WindowTitle(title="Waiting")
   headerbar.set_title_widget(title)
-  spl_button = Adw.SplitButton()
+  spl_button = ttk.SplitButton()
   headerbar.pack_start(spl_button)
   spl_button.set_popover(views_switching(with_ctrl))
 
   return spl
 
 def window(app, with_ctrl : model.Updater, k):
-  win = Adw.ApplicationWindow(application=app, title="Minecluster")
+  win = ttk.ApplicationWindow(application=app, title="Minecluster")
   win.set_default_size(550, 280)
 
   @functools.cache
@@ -60,7 +60,7 @@ def window(app, with_ctrl : model.Updater, k):
     if tab == "home":
       return home(with_ctrl)
     elif tab == "group":
-      return Gtk.Box()
+      return tk.Box()
 
   with_ctrl.subscribe("currentTab", lambda tab: win.set_content(make_(tab)))
   win.set_content(make_("home"))
@@ -92,14 +92,14 @@ popover.viewswitching > contents {
 """
 
 def App(flow):
-  app = Adw.Application(application_id='org.hcmut.ttkb.minecluster')
-  css = Gtk.CssProvider()
+  app = ttk.Application(application_id='org.hcmut.ttkb.minecluster')
+  css = tk.CssProvider()
   css.load_from_string(STYLE_)
 
   def finalize_(win):
-    Gtk.StyleContext.add_provider_for_display(
+    tk.StyleContext.add_provider_for_display(
       win.get_display(), css,
-      Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+      tk.STYLE_PROVIDER_PRIORITY_APPLICATION
     )
 
   def parsing_error(_):
