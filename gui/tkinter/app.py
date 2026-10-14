@@ -95,5 +95,5 @@ from sync import *
 
 if __name__ == "__main__":
   controller = model.Updater()
-  connection = ServerGUISocket(controller)
+  ServerGUISocket(controller)
   app = App(controller)
