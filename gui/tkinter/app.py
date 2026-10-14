@@ -91,9 +91,6 @@ class TabsBar(ttk.Frame):
       case "config":
         self.config_button.configure(style='button_active.TButton',padding=5)
 
-def add1tonum(num):
-  num.set(num.get() + 1)
-
 import socket
 import argparse
 import threading
