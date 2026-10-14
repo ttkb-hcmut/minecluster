@@ -1,8 +1,12 @@
 import gi, functools
+from components.otherHelper import start
 
-gi.require_version("Gtk", "4.0")
-gi.require_version("Adw", "1")
-from gi.repository import (Gtk as tk, Adw as ttk)
+start(gi) \
+  .require_version("Gtk", "4.0") \
+  .require_version("Adw", "1").finish()
+from gi.repository import (
+    Gtk as tk,
+    Adw as ttk)
 
 from components import model
 from components.otherHelper import start
