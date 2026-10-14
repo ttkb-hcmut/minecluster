@@ -1,3 +1,4 @@
+#!/usr/bin/env -S python -u
 import tkinter as tk
 from tkinter import ttk
 from components import model
