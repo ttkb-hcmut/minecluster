@@ -1,3 +1,4 @@
+#!/usr/bin/env -S python -u
 import socket
 import argparse
 import threading
@@ -46,7 +47,6 @@ class GuiApp:
     except ConnectionRefusedError:
       messagebox.showerror("Error", "Could not connect to Elixir server. Is it running?")
       self.root.quit()
-
 
   def serverToGui(self):
     self.stgSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
