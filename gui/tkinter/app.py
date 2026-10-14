@@ -94,20 +94,10 @@ class TabsBar(ttk.Frame):
 def add1tonum(num):
   num.set(num.get() + 1)
 
-# def window(root,ma):
-#   num = ttk.IntVar(value=0)
-#   label = ttk.Label(root, textvariable=num, font=("Arial", 16))
-#   button = ttk.Button(root, text = "balls", command = lambda: ma.action("changeTab",[thedata]))
-#   label.pack(pady=20)
-#   button.pack(pady=20)
-
-
 import socket
 import argparse
 import threading
 import json
-# import tkinter as tk
-# from tkinter import messagebox
 
 class ServerGUISocket():
   def __init__(self,controller: model.Updater):
@@ -169,12 +159,6 @@ class ServerGUISocket():
   def on_close(self):
     self.stgSocket.close()
     self.gtsSocket.close()
-
-# if __name__ == "__main__":
-#   root = tk.Tk()
-#   app = GuiApp(root)
-#   root.mainloop()
-
 
 if __name__ == "__main__":
   controller = model.Updater()
