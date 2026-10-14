@@ -8,7 +8,8 @@ defmodule Minecluster.Mix do
   ]
 
 	defp deps, do: [
-		{:mint, "~> 1.0"}
+		{:mint, "~> 1.0"},
+		{:elixir_uuid, "~> 1.2"}
 	]
 
 	def application, do: [

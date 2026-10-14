@@ -99,12 +99,20 @@ import json
 class ServerGUISocket():
   def __init__(self,controller: model.Updater):
     parser = argparse.ArgumentParser(description="Process some integers.")
-    parser.add_argument("--sport", type=int, help="Server Port number")
-    parser.add_argument("--gport", type=int, help="Gui Port number")
+    parser.add_argument("--hkind",  type=str, help="Harbor kind")
+    parser.add_argument("--sport", type=str, help="Server Port number")
+    parser.add_argument("--gport", type=str, help="Gui Port number")
     args = parser.parse_args()
     
-    self.sport = args.sport
-    self.gport = args.gport
+    self.hkind = args.hkind
+    if self.hkind == "coco":
+      self.socketkind = socket.AF_INET
+      self.sport = int(args.sport)
+      self.gport = int(args.gport)
+    elif self.hkind == "agott":
+      self.socketkind = socket.AF_UNIX
+      self.sport = args.sport
+      self.gport = args.gport
     self.controller = controller
     self.controller.setPushToServer(self.send)
     self.connectToServer()
@@ -112,8 +120,8 @@ class ServerGUISocket():
   #############################
   def connectToServer(self):
     try:
-      self.gtsSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      self.gtsSocket.connect(("localhost", int(self.sport)))
+      self.gtsSocket = socket.socket(self.socketkind, socket.SOCK_STREAM)
+      self.gtsSocket.connect(self.sport)
     except Exception as e:
       print(e)
       # messagebox.showerror("Error", "Could not connect to Elixir server. Is it running?")
@@ -122,8 +130,8 @@ class ServerGUISocket():
 
   def serverToGui(self):
     try:
-      self.stgSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      self.stgSocket.bind(("localhost", int(self.gport)))
+      self.stgSocket = socket.socket(self.socketkind, socket.SOCK_STREAM)
+      self.stgSocket.bind(self.gport)
       threading.Thread(target=self.receiveLoop, daemon=True).start()
     
     except Exception as e:
