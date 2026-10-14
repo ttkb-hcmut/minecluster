@@ -5,6 +5,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw
 
 from components import model
+from components.otherHelper import start
 
 @functools.cache
 def views_switching(with_ctrl : model.Updater):
@@ -24,11 +25,6 @@ def views_switching(with_ctrl : model.Updater):
     btn.add_css_class("i77")
     return btn
 
-  class start:
-    def __init__(self, pack): self.pack = pack
-    def append(self, it): self.pack.append(it); return self
-    def finish(self): pass
-
   start(pack) \
     .append(item("home", name="Home")) \
     .append(item("group", name="Group")) \
@@ -40,10 +36,8 @@ def views_switching(with_ctrl : model.Updater):
 
 def home(with_ctrl : model.Updater):
   spl = Adw.OverlaySplitView(sidebar_position=Gtk.PackType.END)
-
   chat = Gtk.Box()
   spl.set_sidebar(chat)
-
   main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
   spl.set_content(main)
   headerbar = Adw.HeaderBar()
@@ -70,7 +64,6 @@ def window(app, with_ctrl : model.Updater, k):
 
   with_ctrl.subscribe("currentTab", lambda tab: win.set_content(make_(tab)))
   win.set_content(make_("home"))
-
   k(win)
   win.present()
   pass
