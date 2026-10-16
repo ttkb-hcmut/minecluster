@@ -5,7 +5,7 @@ defmodule Wit do
     :gen_tcp.close(socket)
     port
   end
-	
+
   def start1(serverPort \\ nil,guiPort \\ nil) do
     {serverPort,guiPort} = case {serverPort,guiPort} do
       {nil,nil} -> {getFreePort(),getFreePort()}
@@ -16,14 +16,24 @@ defmodule Wit do
     {:ok,gtsSocket} = :gen_tcp.listen(serverPort, [:binary, packet: :line, active: false, reuseaddr: true])
     IO.puts("Elixir server listening on port #{serverPort}")
     Task.start_link(fn ->
-      System.cmd(System.find_executable("python"),
+      try do
+        System.cmd(System.find_executable("python"),
+          [
+            "-u","./gui/tkinter/app.py",
+            "--hkind", "coco",
+            "--sport", "#{serverPort}",
+            "--gport", "#{guiPort}",
+          ])
+      rescue _ ->
+        System.cmd(System.find_executable("py"),
         [
           "-u","./gui/tkinter/app.py",
-					"--hkind", "coco",
+          "--hkind", "coco",
           "--sport", "#{serverPort}",
           "--gport", "#{guiPort}",
         ])
-      end)
+      end
+    end)
     Process.spawn(fn -> Wit.listenServer(gtsSocket) end, [:link])
     Process.sleep(1000)
     {:ok, stgSocket} = :gen_tcp.connect(:localhost,guiPort, [:binary, packet: :line, active: false, reuseaddr: true])
