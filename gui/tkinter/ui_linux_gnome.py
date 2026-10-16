@@ -74,17 +74,27 @@ def home(with_ctrl : model.Updater, currentTab):
   bbox.set_content(mbox)
   mbox.set_size_request(250, -1)
   store = Gio.ListStore.new(GObject.Object) # TODO(kinten): a gio.model interface for msgFeed
+
   def on_new_ls(ls):
     def ahm(x):
       o = GObject.Object()
       o.text = x
       return o
-    store.splice(0, store.get_n_items(), [ahm(x) for x in ls])
+    store.splice(0, store.get_n_items(), [ahm(x.txt) for x in ls])
   with_ctrl.subscribe('msgFeed', on_new_ls)
   factory = tk.SignalListItemFactory()
 
-  def on_setup(_, li): li.set_child(tk.Label())
-  def on_bind(_, li): li.get_child().set_text(li.get_item().text)
+  def on_setup(_, li):
+    widget = tk.Box()
+    label = tk.Label()
+    widget.append(label)
+    widget.label = label
+    li.set_child(widget)
+
+  def on_bind(_, li):
+    widget = li.get_child()
+    label = widget.label
+    label.set_text(li.get_item().text)
 
   factory.connect('setup', on_setup)
   factory.connect('bind', on_bind)

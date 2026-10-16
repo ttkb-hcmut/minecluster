@@ -4,10 +4,15 @@ import threading
 _LOGGING = False
 
 @dataclass
+class Msg:
+  sender: str | None
+  txt: str
+
+@dataclass
 class Model:
   # GUI specific data fields ====================
   currentTab: str = "home"
-  msgFeed: list = field(default_factory=list)
+  msgFeed: list[Msg] = field(default_factory=list[Msg])
 
   # Application data fields =====================
   ## config/all
@@ -108,13 +113,13 @@ class Updater:
       
   def pushMsgQueue(self,msg,sender = None):
     if sender is None:
-      youmsg = f"You> {msg.strip()}"
+      youmsg = Msg(sender=None, txt=msg.strip())
       self.get_and_set("msgFeed",
         lambda old: old + [youmsg] if len(old)<32 else [i for i in (old[-31:] + [youmsg])]
       )
       self.sendFetch("command",["msg",msg])
     else:
-      fullmsg = f"{sender}:{msg}"
+      fullmsg = Msg(sender=sender, txt=msg)
       self.get_and_set("msgFeed",
         lambda old: old + [fullmsg] if len(old)<32 else [i for i in (old[-31:] + [fullmsg])]
       )
