@@ -98,8 +98,7 @@ def home(with_ctrl : model.Updater, currentTab):
 
   factory.connect('setup', on_setup)
   factory.connect('bind', on_bind)
-
-  connlist = tk.ListView(model=tk.SingleSelection(model=store), factory=factory, vexpand=True)
+  connlist = tk.ListView(model=tk.NoSelection(model=store), factory=factory, vexpand=True)
   mbox.append(connlist)
   connlist.add_css_class('transparent')
   bottombar = tk.Box(orientation=tk.Orientation.VERTICAL)
