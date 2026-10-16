@@ -36,9 +36,9 @@ def views_switching(with_ctrl : model.Updater):
     return btn
 
   items = {
-      'home': item("home", name="Home", icon_name="user-home-symbolic"),
-      'group': item("group", name="Group", icon_name="network-workgroup-symbolic"),
-      'config': item("config", name="Config", icon_name="preferences-system-symbolic")
+    'home': item("home", name="Home", icon_name="user-home-symbolic"),
+    'group': item("group", name="Group", icon_name="network-workgroup-symbolic"),
+    'config': item("config", name="Config", icon_name="preferences-system-symbolic")
   }
 
   def on_change(tab):
@@ -78,14 +78,19 @@ def home(with_ctrl : model.Updater, currentTab):
   def on_new_ls(ls):
     def ahm(x):
       o = GObject.Object()
-      o.text = x
+      o.txt = x.txt
+      o.sender = x.sender
       return o
-    store.splice(0, store.get_n_items(), [ahm(x.txt) for x in ls])
+    store.splice(0, store.get_n_items(), [ahm(x) for x in ls])
   with_ctrl.subscribe('msgFeed', on_new_ls)
   factory = tk.SignalListItemFactory()
 
   def on_setup(_, li):
-    widget = tk.Box()
+    widget = tk.FlowBox()
+    person = tk.Label()
+    widget.append(person)
+    widget.person = person
+    person.add_css_class('person')
     label = tk.Label()
     widget.append(label)
     widget.label = label
@@ -93,24 +98,35 @@ def home(with_ctrl : model.Updater, currentTab):
 
   def on_bind(_, li):
     widget = li.get_child()
+    person = widget.person
+    if li.get_item().sender is None:
+      person.set_text("You")
+    else:
+      person.set_text(li.get_item().sender)
     label = widget.label
-    label.set_text(li.get_item().text)
+    label.set_text(li.get_item().txt)
 
   factory.connect('setup', on_setup)
   factory.connect('bind', on_bind)
+  connlist_ = ttk.Clamp()
   connlist = tk.ListView(model=tk.NoSelection(model=store), factory=factory, vexpand=True)
-  mbox.append(connlist)
+  connlist_.set_child(connlist)
+  mbox.append(connlist_)
   connlist.add_css_class('transparent')
   bottombar = tk.Box(orientation=tk.Orientation.VERTICAL)
   mbox.append(bottombar)
   entry = tk.Entry()
+  entry.set_placeholder_text("Message")
+  entry.set_margin_start(6)
+  entry.set_margin_end(6)
+  entry.set_margin_top(6)
+  entry.set_margin_bottom(6)
 
   def activate(entry):
     with_ctrl.pushMsgQueue(entry.get_text())
     entry.set_text("")
 
   entry.connect('activate', activate)
-  bottombar.set_size_request(-1, 66)
   bottombar.add_css_class('bottombar')
   bottombar.append(entry)
   main = tk.Box(orientation=tk.Orientation.VERTICAL, spacing=0)
@@ -181,7 +197,6 @@ def home(with_ctrl : model.Updater, currentTab):
   spl_button = ttk.SplitButton()
   headerbar.pack_start(spl_button)
   spl_button.set_popover(views_switching(with_ctrl)(currentTab))
-
   return spl
 
 def window(app, with_ctrl : model.Updater, k):
@@ -249,6 +264,10 @@ popover.viewswitching > contents {
 
 #b > .content-pane {
     box-shadow: none;
+}
+
+.person {
+  color: #A9AAAA;
 }
 
 """
