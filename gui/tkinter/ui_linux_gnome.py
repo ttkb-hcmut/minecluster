@@ -254,7 +254,7 @@ popover.viewswitching > contents {
 """
 
 def App(flow):
-  app = ttk.Application(application_id='org.hcmutttkb.minecluster')
+  app = ttk.Application(application_id='org.hcmut.ttkb.minecluster')
   css = tk.CssProvider()
   css.load_from_string(STYLE_)
 
