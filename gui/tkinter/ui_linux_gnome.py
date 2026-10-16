@@ -107,6 +107,7 @@ def home(with_ctrl : model.Updater, currentTab):
 
   def activate(entry):
     with_ctrl.pushMsgQueue(entry.get_text())
+    entry.set_text("")
 
   entry.connect('activate', activate)
   bottombar.set_size_request(-1, 66)
