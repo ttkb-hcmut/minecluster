@@ -75,7 +75,11 @@ def home(with_ctrl : model.Updater, currentTab):
   mbox.set_size_request(250, -1)
   store = Gio.ListStore.new(GObject.Object) # TODO(kinten): a gio.model interface for msgFeed
   def on_new_ls(ls):
-    store.splice(0, store.get_n_items(), [GObject.Object() for x in ls])
+    def ahm(x):
+      o = GObject.Object()
+      o.text = x
+      return o
+    store.splice(0, store.get_n_items(), [ahm(x) for x in ls])
   with_ctrl.subscribe('msgFeed', on_new_ls)
   factory = tk.SignalListItemFactory()
 
