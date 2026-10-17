@@ -6,11 +6,13 @@ start(gi) \
   .require_version("GObject", "2.0") \
   .require_version("Gio", "2.0") \
   .require_version("Adw", "1") \
+  .require_version("Pango", "1.0") \
   .finish()
 from gi.repository import (
     Gtk as tk,
     GObject,
     Gio,
+    Pango,
     Adw as ttk)
 
 from components import model
@@ -86,37 +88,37 @@ def home(with_ctrl : model.Updater, currentTab):
   factory = tk.SignalListItemFactory()
 
   def on_setup(_, li):
-    widget = tk.FlowBox()
-    person = tk.Label()
-    widget.append(person)
-    widget.person = person
-    person.add_css_class('person')
-    label = tk.Label()
-    widget.append(label)
+    widget = tk.Overlay()
+    overlay = tk.Label(xalign=0.0, yalign=0.0, halign=tk.Align.FILL, use_markup=True, wrap=True, wrap_mode=Pango.WrapMode.CHAR)
+    widget.add_overlay(overlay)
+    widget.overlay = overlay
+    overlay.add_css_class('person')
+    label = tk.Label(xalign=0.0, yalign=0.0, halign=tk.Align.FILL, use_markup=True, wrap=True, wrap_mode=Pango.WrapMode.CHAR)
+    widget.set_child(label)
     widget.label = label
     li.set_child(widget)
 
   def on_bind(_, li):
     widget = li.get_child()
-    person = widget.person
-    if li.get_item().sender is None:
-      person.set_text("You")
-    else:
-      person.set_text(li.get_item().sender)
+    overlay = widget.overlay
     label = widget.label
-    label.set_text(li.get_item().txt)
+    overlay.set_label("You" if li.get_item().sender is None else li.get_item().sender)
+    label.set_label(f"<span foreground=\"#f3f3f3\">{"You" if li.get_item().sender is None else li.get_item().sender}</span> {li.get_item().txt}")
 
   factory.connect('setup', on_setup)
   factory.connect('bind', on_bind)
-  connlist_ = ttk.Clamp()
+  connlist__ = ttk.Clamp()
+  connlist_  = tk.ScrolledWindow()
+  connlist__.set_child(connlist_)
   connlist = tk.ListView(model=tk.NoSelection(model=store), factory=factory, vexpand=True)
   connlist_.set_child(connlist)
-  mbox.append(connlist_)
+  connlist.add_css_class('messages')
+  mbox.append(connlist__)
   connlist.add_css_class('transparent')
   bottombar = tk.Box(orientation=tk.Orientation.VERTICAL)
   mbox.append(bottombar)
   entry = tk.Entry()
-  entry.set_placeholder_text("Message")
+  # entry.set_placeholder_text("Message <C-b>")
   entry.set_margin_start(6)
   entry.set_margin_end(6)
   entry.set_margin_top(6)
@@ -156,9 +158,10 @@ def home(with_ctrl : model.Updater, currentTab):
   loginform.append(loginformmain)
   loginformmain.add_css_class('vertical')
   loginformmain.add_css_class('linked')
-  entry1 = tk.Entry(placeholder_text="Address")
+  entry1 = tk.Entry()
   loginformmain.append(entry1)
-  entry2 = tk.Entry(placeholder_text="Cookie")
+  entryAddress = entry1
+  entry2 = tk.Entry()
   loginformmain.append(entry2)
 
   def update_edit(v):
@@ -187,8 +190,14 @@ def home(with_ctrl : model.Updater, currentTab):
   connectform.append(connectforminner)
   connectforminner.add_css_class('horizontal')
   connectforminner.add_css_class('linked')
-  entry = tk.Entry(placeholder_text="Address", hexpand=True)
+  entry = tk.Entry(hexpand=True)
   connectforminner.append(entry)
+
+  def connect(_):
+    cookie = with_ctrl.get("selfCookie")
+    with_ctrl.sendFetch("command", ["connect", entryAddress.get_text(), cookie])
+
+  entry.connect('activate', connect)
   btn = tk.Button(icon_name="go-next-symbolic")
   connectforminner.append(btn)
   btn.set_visible(False)
@@ -268,6 +277,11 @@ popover.viewswitching > contents {
 
 .person {
   color: #A9AAAA;
+}
+
+listview.messages > row {
+  padding-left: 6px;
+  line-height: 1rem;
 }
 
 """
