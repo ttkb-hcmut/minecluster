@@ -10,8 +10,8 @@ start(gi) \
   .finish()
 from gi.repository import (
     Gtk as tk,
-    GObject,
-    Gio,
+    GObject as tkobject,
+    Gio as tkio,
     Pango,
     Adw as ttk)
 
@@ -75,11 +75,11 @@ def home(with_ctrl : model.Updater, currentTab):
   mbox = tk.Box(orientation=tk.Orientation.VERTICAL)
   bbox.set_content(mbox)
   mbox.set_size_request(250, -1)
-  store = Gio.ListStore.new(GObject.Object) # TODO(kinten): a gio.model interface for msgFeed
+  store = tkio.ListStore.new(tkobject.Object) # TODO(kinten): a gio.model interface for msgFeed
 
   def on_new_ls(ls):
     def ahm(x):
-      o = GObject.Object()
+      o = tkobject.Object()
       o.txt = x.txt
       o.sender = x.sender
       return o
