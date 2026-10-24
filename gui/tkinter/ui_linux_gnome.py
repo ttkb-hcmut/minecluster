@@ -6,11 +6,13 @@ start(gi) \
   .require_version("GObject", "2.0") \
   .require_version("Gio", "2.0") \
   .require_version("Adw", "1") \
+  .require_version("Pango", "1.0") \
   .finish()
 from gi.repository import (
     Gtk as tk,
-    GObject,
-    Gio,
+    GObject as tkobject,
+    Gio as tkio,
+    Pango,
     Adw as ttk)
 
 from components import model
@@ -36,9 +38,9 @@ def views_switching(with_ctrl : model.Updater):
     return btn
 
   items = {
-      'home': item("home", name="Home", icon_name="user-home-symbolic"),
-      'group': item("group", name="Group", icon_name="network-workgroup-symbolic"),
-      'config': item("config", name="Config", icon_name="preferences-system-symbolic")
+    'home': item("home", name="Home", icon_name="user-home-symbolic"),
+    'group': item("group", name="Group", icon_name="network-workgroup-symbolic"),
+    'config': item("config", name="Config", icon_name="preferences-system-symbolic")
   }
 
   def on_change(tab):
@@ -73,34 +75,60 @@ def home(with_ctrl : model.Updater, currentTab):
   mbox = tk.Box(orientation=tk.Orientation.VERTICAL)
   bbox.set_content(mbox)
   mbox.set_size_request(250, -1)
-  store = Gio.ListStore.new(GObject.Object) # TODO(kinten): a gio.model interface for msgFeed
+  store = tkio.ListStore.new(tkobject.Object) # TODO(kinten): a gio.model interface for msgFeed
+
   def on_new_ls(ls):
     def ahm(x):
-      o = GObject.Object()
-      o.text = x
+      o = tkobject.Object()
+      o.txt = x.txt
+      o.sender = x.sender
       return o
     store.splice(0, store.get_n_items(), [ahm(x) for x in ls])
   with_ctrl.subscribe('msgFeed', on_new_ls)
   factory = tk.SignalListItemFactory()
 
-  def on_setup(_, li): li.set_child(tk.Label())
-  def on_bind(_, li): li.get_child().set_text(li.get_item().text)
+  def on_setup(_, li):
+    widget = tk.Overlay()
+    overlay = tk.Label(xalign=0.0, yalign=0.0, halign=tk.Align.FILL, use_markup=True, wrap=True, wrap_mode=Pango.WrapMode.CHAR)
+    widget.add_overlay(overlay)
+    widget.overlay = overlay
+    overlay.add_css_class('person')
+    label = tk.Label(xalign=0.0, yalign=0.0, halign=tk.Align.FILL, use_markup=True, wrap=True, wrap_mode=Pango.WrapMode.CHAR)
+    widget.set_child(label)
+    widget.label = label
+    li.set_child(widget)
+
+  def on_bind(_, li):
+    widget = li.get_child()
+    overlay = widget.overlay
+    label = widget.label
+    overlay.set_label("You" if li.get_item().sender is None else li.get_item().sender)
+    label.set_label(f"<span foreground=\"#f3f3f3\">{"You" if li.get_item().sender is None else li.get_item().sender}</span> {li.get_item().txt}")
 
   factory.connect('setup', on_setup)
   factory.connect('bind', on_bind)
-
-  connlist = tk.ListView(model=tk.SingleSelection(model=store), factory=factory, vexpand=True)
-  mbox.append(connlist)
+  connlist__ = ttk.Clamp()
+  connlist_  = tk.ScrolledWindow()
+  connlist__.set_child(connlist_)
+  connlist = tk.ListView(model=tk.NoSelection(model=store), factory=factory, vexpand=True)
+  connlist_.set_child(connlist)
+  connlist.add_css_class('messages')
+  mbox.append(connlist__)
   connlist.add_css_class('transparent')
   bottombar = tk.Box(orientation=tk.Orientation.VERTICAL)
   mbox.append(bottombar)
   entry = tk.Entry()
+  # entry.set_placeholder_text("Message <C-b>")
+  entry.set_margin_start(6)
+  entry.set_margin_end(6)
+  entry.set_margin_top(6)
+  entry.set_margin_bottom(6)
 
   def activate(entry):
     with_ctrl.pushMsgQueue(entry.get_text())
+    entry.set_text("")
 
   entry.connect('activate', activate)
-  bottombar.set_size_request(-1, 66)
   bottombar.add_css_class('bottombar')
   bottombar.append(entry)
   main = tk.Box(orientation=tk.Orientation.VERTICAL, spacing=0)
@@ -130,9 +158,10 @@ def home(with_ctrl : model.Updater, currentTab):
   loginform.append(loginformmain)
   loginformmain.add_css_class('vertical')
   loginformmain.add_css_class('linked')
-  entry1 = tk.Entry(placeholder_text="Address")
+  entry1 = tk.Entry()
   loginformmain.append(entry1)
-  entry2 = tk.Entry(placeholder_text="Cookie")
+  entryAddress = entry1
+  entry2 = tk.Entry()
   loginformmain.append(entry2)
 
   def update_edit(v):
@@ -161,8 +190,14 @@ def home(with_ctrl : model.Updater, currentTab):
   connectform.append(connectforminner)
   connectforminner.add_css_class('horizontal')
   connectforminner.add_css_class('linked')
-  entry = tk.Entry(placeholder_text="Address", hexpand=True)
+  entry = tk.Entry(hexpand=True)
   connectforminner.append(entry)
+
+  def connect(_):
+    cookie = with_ctrl.get("selfCookie")
+    with_ctrl.sendFetch("command", ["connect", entryAddress.get_text(), cookie])
+
+  entry.connect('activate', connect)
   btn = tk.Button(icon_name="go-next-symbolic")
   connectforminner.append(btn)
   btn.set_visible(False)
@@ -171,7 +206,6 @@ def home(with_ctrl : model.Updater, currentTab):
   spl_button = ttk.SplitButton()
   headerbar.pack_start(spl_button)
   spl_button.set_popover(views_switching(with_ctrl)(currentTab))
-
   return spl
 
 def window(app, with_ctrl : model.Updater, k):
@@ -241,10 +275,19 @@ popover.viewswitching > contents {
     box-shadow: none;
 }
 
+.person {
+  color: #A9AAAA;
+}
+
+listview.messages > row {
+  padding-left: 6px;
+  line-height: 1rem;
+}
+
 """
 
 def App(flow):
-  app = ttk.Application(application_id='org.hcmutttkb.minecluster')
+  app = ttk.Application(application_id='org.hcmut.ttkb.minecluster')
   css = tk.CssProvider()
   css.load_from_string(STYLE_)
 

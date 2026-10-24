@@ -211,7 +211,8 @@ class ChatWindow(ttk.Frame):
 
     controller.subscribe("msgFeed",lambda data: self.refreshList(data,controller))
   def refreshList(self,data,controller):
-    self.list.set(data)
+    mk_msg = lambda x: f"You> {x.txt}" if x.sender is None else f"{x.sender}:{x.txt}"
+    self.list.set([mk_msg(x) for x in data])
     # is_at_bottom = self.list.getBottom()
     # self.list.destroy()
     # self.list = ScrollableList(self,controller,data,toBottom = is_at_bottom)
