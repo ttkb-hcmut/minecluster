@@ -279,7 +279,7 @@ defmodule Cli do
         i: "Configure stuff",
         a: nil,
         c: %{
-          node_address:  %{
+          address:  %{
             i: "Address of self node used when connecting with other nodes",
             a:  fn _ ->  Naas.setConfig("address",nil) end,
             c:  %{
@@ -289,7 +289,7 @@ defmodule Cli do
               }
             }
           },
-          node_cookie:  %{
+          cookie:  %{
             i: "Default secret node cookie used when connecting to nodes with the same cookie",
             a:  fn _ -> Naas.setConfig("cookie",nil) end,
             c:  %{
@@ -298,6 +298,11 @@ defmodule Cli do
                 a: fn {_,_,[v|_]} -> Naas.setConfig("cookie",v) end
               }
             }
+          },
+          logLevel:  %{
+            i: "Configure how much logging information is posted to the Cli",
+            a:  fn opts ->  Naas.setConfig("logLevel",opts |> Map.get("",[]) |> Enum.filter(fn e -> e in ["info","detail","warning","error"] end)) end,
+            p:  %{}
           },
           all:  %{
             i: "Displays all active configs",
@@ -475,9 +480,9 @@ defmodule Cli do
 
   def tree_traverser({ctx,input_list,cached}, is_start \\ false, from_cli \\ true) do
     cList  = ctx |> Map.get(:c, %{}) |> Map.keys |> Enum.map(fn k -> k |> Atom.to_string end)
-    pList  = ctx |> Map.get(:p, %{})
+    pList  = ctx |> Map.get(:p, nil)
     action = ctx |> Map.get(:a, fn _ -> nil end)
-    case {input_list, pList == %{}, action,from_cli} do
+    case {input_list,is_nil(pList), action,from_cli} do
     {_,false,_,_} ->
       Command.arbitraryArg({ctx,input_list,cached})
       nil

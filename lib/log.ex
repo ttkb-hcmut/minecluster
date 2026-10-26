@@ -193,6 +193,7 @@ defmodule Log do
         |> Enum.map(fn l ->
           l.toCli.(l) |> IO.puts
         end)
+        self
     end
   end
 end

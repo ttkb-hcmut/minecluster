@@ -69,13 +69,13 @@ defmodule Wit do
       nil -> nil
       a ->
         try do
-          IO.inspect data
           Process.send(a,{
             :data,
             (data |> JSON.encode!)
-          },[])
-        rescue
-          _ ->
+            },[])
+          rescue
+            _ ->
+            IO.inspect data
             IO.puts "Push failed"
             nil
         end

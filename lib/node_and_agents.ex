@@ -114,9 +114,21 @@ defmodule Naas do
   def getAllConfig() do
     Cli.info "All stored configs:"
     map = Naas.getConfig()
-    for k <- (map |> Map.keys) do
-       "\t" <> IO.ANSI.blue() <> k <> IO.ANSI.reset() <> ": " <> (map |> Map.get(k)) |> Cli.info
-    end
+    map |> Map.keys |> List.foldl(Log.new(),fn k,acc ->
+      {template,data} = if map[k] |> is_list do
+        {
+          "\t" <> IO.ANSI.blue() <> Log.dataHold <> IO.ANSI.reset() <> ":" <>
+          (map[k] |> List.foldl("",fn _,acc -> acc <> " " <> Log.dataHold end)),
+          [k | map[k]]
+        }
+      else
+        {
+          "\t" <> IO.ANSI.blue() <> Log.dataHold <> IO.ANSI.reset() <> ": ",
+          [k, map[k]]
+        }
+      end
+      acc |> Log.info(template,data,"configAll-"<>k)
+    end) |> Log.flush |> Log.flush(true)
     nil
   end
   def setConfig(k\\nil,v\\nil) do
@@ -137,6 +149,11 @@ defmodule Naas do
     |> Log.info("Self Cookie:\n  #{Log.dataHold}",Node.get_cookie()|>Atom.to_string,"selfCookie")
   end
   def startNode(address\\nil,cookie\\nil) do
+    {address,cookie} = if address == "nonode@nohost" do
+      {nil,nil}
+    else
+      {address,cookie}
+    end
     {r, _} = case {getConfig("address"),address} do
       {nil,nil} ->
         Cli.error "No address found in arg or config";
