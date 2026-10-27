@@ -300,7 +300,7 @@ defmodule Cli do
             }
           },
           logLevel:  %{
-            i: "Configure how much logging information is posted to the Cli",
+            i: "Configure how much logging information is posted to the Cli [info detail warning error]",
             a:  fn opts ->  Naas.setConfig("logLevel",opts |> Map.get("",[]) |> Enum.filter(fn e -> e in ["info","detail","warning","error"] end)) end,
             p:  %{}
           },

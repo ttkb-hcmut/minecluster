@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field, fields
 import threading
 
-_LOGGING = False
+_LOGGING = True
 
 @dataclass
 class Msg:
@@ -18,8 +18,8 @@ class Model:
   ## config/all
   configAll: dict = field(default_factory=dict)
   ## self
-  selfAddress: str = "nonode@nohost"
-  selfCookie: str = "balls"
+  selfAddress: str = "wait"
+  selfCookie: str = "wait"
   ## list
   nodeList: list = field(default_factory=list)
   central: list = field(default_factory=list)
@@ -49,6 +49,7 @@ class Updater:
 
   def setPushToServer(self,func):
     self.pushFunc = func
+    self.sendFetch("command",["start"])
 
   def sendFetch(self,api,data):
     message = {}
@@ -59,11 +60,12 @@ class Updater:
 
   def handleIncoming(self,data):
     for key in data.keys():
-      if key == "message":
-        [sender, group, message] = data[key]
-        self.pushMsgQueue(message,sender=sender)
-      else:
-        self.set(key, data[key])
+      match key: 
+        case "message":
+          [sender, group, message] = data[key]
+          self.pushMsgQueue(message,sender=sender)
+        case _:
+          self.set(key, data[key])
 
 
   def set(self,field, data):

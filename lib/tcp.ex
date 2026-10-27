@@ -86,7 +86,7 @@ defmodule Wit do
   def pushServer(socket) do
     receive do
       {:data, data} ->
-        Log.detail(nil, "sending data:#{data}")
+        Log.detail(nil, "sending data",[data])
         :ok = :gen_tcp.send(socket,data <> "\n")
         Wit.pushServer(socket)
       _ ->
@@ -108,6 +108,7 @@ defmodule Wit do
   def handleRequest(client,socket) do
     case :gen_tcp.recv(client, 0) do
       {:ok, data} ->
+        Log.detail(nil,"recieved request")
         Log.detail(nil,data)
         try do
           case String.trim(data) |> JSON.decode! do
@@ -118,6 +119,7 @@ defmodule Wit do
                 Log.error(nil,"Failed command: #{list |> Enum.join(" ")}")
               end
             %{"api" => request}->
+              Log.detail(nil,"Api request: #{request}")
               WitApi.get(request)
             _ ->
               Log.error(nil,"Unknown received from gui")
@@ -144,7 +146,7 @@ defmodule WitApi do
     case request do
       # get all configs
       "config/all" ->
-        Log.new([Log.Info.new("configAll","",[Naas.getConfig(nil)])])
+        Log.new |> Log.info("",[Naas.getConfig(nil)],"configAll")
 
       # get self address and self cookie
       "self" ->

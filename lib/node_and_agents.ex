@@ -16,8 +16,14 @@ defmodule Naas do
     # end
     File.mkdir_p("./groups")
     File.open(".config", [:read], fn file ->
-      data = IO.read(file, :line)
-      {:ok, _} = Agent.start_link(fn ->  data |> JSON.decode! end, name: :config)
+      fromFile = IO.read(file, :line)|> JSON.decode!
+      conf = fn k,v -> fromFile |> Map.get(k,v) end
+      data = %{
+        "address"  => conf.("address", "you@127.0.0.1"),
+        "cookie"   => conf.("cookie", "balls"),
+        "logLevel" => conf.("logLevel", ["info","detail","warning","error"]),
+      }
+      {:ok, _} = Agent.start_link(fn ->  data  end, name: :config)
       Cli.detail "Imported config to Agent"
       # IO.inspect pid
     end)
@@ -127,8 +133,8 @@ defmodule Naas do
           [k, map[k]]
         }
       end
-      acc |> Log.info(template,data,"configAll-"<>k)
-    end) |> Log.flush |> Log.flush(true)
+      acc |> Log.info(template,data)
+    end) |> Log.flush
     nil
   end
   def setConfig(k\\nil,v\\nil) do
@@ -171,6 +177,7 @@ defmodule Naas do
         Node.set_cookie(c|> String.to_atom)
         Cli.detail "Started node with address: #{Node.self() |> Atom.to_string}"
     end
+    WitApi.get("self")
     nil
   end
   def connectNode(address,cookie\\nil) do
@@ -190,6 +197,7 @@ defmodule Naas do
     false -> Cli.error "Failed to connect to node: " <> address; false
     :ignored -> Cli.error("Local node is not alive"); :ignored
     end
+    WitApi.get("list")
   end
   def getGroupInfo(group, cookie\\nil) do
     name = case cookie do

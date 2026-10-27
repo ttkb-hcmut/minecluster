@@ -20,7 +20,7 @@ class NodeSelf(ttk.Frame):
     self.is_editting = False
     self.label_nodeself     = ttk.Label(self,text = "Node self",font=(Ste.FONT.value,Ste.FONT_SIZE.value,"bold", 'underline'))
     self.save_nodeself      = ttk.Button(self,text="Save",command=lambda:self.submit(controller))
-    self.editcancel_nodeself= ttk.Button(self,text="Edit",command=lambda:self.toggleEdit(controller))
+    self.editcancel_nodeself= ttk.Button(self,text="Edit",command=lambda:self.toggleEdit(controller) or controller.sendFetch("api","self"))
     self.label_nodeself.grid(row=row.curr(),column=0,sticky="nsew",padx=Ste.PAD.value)
     self.save_nodeself.grid(row=row.curr(),column=1,sticky="e",padx=Ste.PAD.value)
     self.save_nodeself.grid_remove()
@@ -154,6 +154,7 @@ class ConnectNode(ttk.Frame):
   def submit(self,controller: model.Updater):
     controller.sendFetch("command",["connect",self.entry_address.get(),controller.get("selfCookie")])
     self.entry_address.delete(0,"end")
+    controller.sendFetch("api","list")
     
 class ConnectedList(ttk.Frame):
   def __init__(self,parent,controller):
@@ -177,6 +178,8 @@ class ConnectedList(ttk.Frame):
     self.list.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
 
     controller.subscribe("nodeList",lambda data: self.refreshList(data,controller))
+    
+    controller.sendFetch("api","list")
   def refreshList(self,data,controller):
     self.list.set(data)
     

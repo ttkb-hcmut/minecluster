@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from components import mainHome
+from components import mainHome, mainGroup, mainConfig
 
 class App(tk.Tk):
   def __init__(self,controller):
@@ -13,7 +13,6 @@ class App(tk.Tk):
     self.backgroundColor = ttk.Label(self,background= "#ffffff").grid(row=0, column=0, rowspan=2, sticky="nsew")
     self.tabsBar = TabsBar(self,controller)
     self.main = Main(self,controller)
-    
     self.mainloop()
 
 class Main(ttk.Frame):
@@ -23,9 +22,9 @@ class Main(ttk.Frame):
     self.columnconfigure(index=(0),weight=1)
     self.rowconfigure(index=(0),weight=1)
     # self.backgroundColor = ttk.Label(self,background= "#ff0000").pack(expand= True, fill = "both")
-    self.mainHome = mainHome.MainHome(self,controller)
-    mainGroup = MainTab(self,controller,"group")
-    mainConfig = MainTab(self,controller,"config")
+    self.mainHome   = mainHome.MainHome(self,controller)
+    self.mainGroup  = mainGroup.MainGroup(self,controller)
+    self.mainConfig = mainConfig.MainConfig(self,controller)
     
 class MainTab(ttk.Frame):
   def __init__(self,parent,controller,title):
