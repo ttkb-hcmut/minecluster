@@ -242,7 +242,7 @@ class MainHome(ttk.Frame):
       self.grid()
 
     self.initcontent(controller)
-    controller.subscribe("currentTab", self.showHideMenu)
+    controller.subscribe("currentTab", lambda data: self.showHideMenu(data,controller))
 
   def initcontent(self,controller):
     self.nodeself = NodeSelf(self,controller)
@@ -254,8 +254,10 @@ class MainHome(ttk.Frame):
     self.connected = ConnectedList(self,controller)
     self.connected.grid(row=2, column=1, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
 
-  def showHideMenu(self,data):
+  def showHideMenu(self,data,controller):
     if data == self.id:
+      controller.sendFetch("api","self")
+      controller.sendFetch("api","list")
       self.grid()
     else:
       self.grid_remove()

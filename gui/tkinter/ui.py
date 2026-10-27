@@ -63,7 +63,7 @@ class TabsBar(ttk.Frame):
       background ='#dddddd',   # Button body color
       padding = 0
     )
-    self.home_button    = ttk.Button(self,text="Home", style='button_active.TButton', padding=5,
+    self.home_button    = ttk.Button(self,text="Home", style='button_inactive.TButton',
                             command = lambda: controller.set("currentTab","home"))
     self.group_button   = ttk.Button(self,text="Group", style='button_inactive.TButton',
                             command = lambda: controller.set("currentTab","group"))

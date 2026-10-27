@@ -27,6 +27,7 @@ defmodule Naas do
       Cli.detail "Imported config to Agent"
       # IO.inspect pid
     end)
+    Wit.start1
   end
 
   def monosodiumglutamate(src \\:nonode@nohost, msg \\ "ping") do

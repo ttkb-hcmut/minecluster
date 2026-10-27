@@ -11,7 +11,7 @@ class Msg:
 @dataclass
 class Model:
   # GUI specific data fields ====================
-  currentTab: str = "home"
+  currentTab: str = ""
   msgFeed: list[Msg] = field(default_factory=list[Msg])
 
   # Application data fields =====================
