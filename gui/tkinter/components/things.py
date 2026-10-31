@@ -93,7 +93,17 @@ class Tablerone(ttk.Frame):
 
   def none(self):
     return None
-
+  def cell(self,/,thingClass = None,id=None,doAfterCreated = None,**kwargs):
+    if thingClass is None:
+      return self.none()
+    else:
+      thing = thingClass(self,**kwargs)
+      if id is not None:
+        self.dict[id] = thing
+      if doAfterCreated is not None:
+        for func in doAfterCreated:
+          func(thing)
+      return thing
   def label(self, /, id=None, **kwargs):
     lab = ttk.Label(self, **kwargs, background="")
     if id is not None:

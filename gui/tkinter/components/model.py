@@ -44,7 +44,7 @@ class Updater:
       self.subscribers[field] = []
 
   def subscribe(self,field,func):
-    self.subscribers[field] = self.subscribers[field] + [func]
+    self.subscribers[field] = self.subscribers.get(field,[]) + [func]
     print(f"{field} -> {func}") if _LOGGING else None
 
   def setPushToServer(self,func):
@@ -77,7 +77,8 @@ class Updater:
         for subscriber in self.subscribers[field]: 
           subscriber(data)    
       else:
-        raise ValueError(f"Unknown datafield '{field}'")
+        for subscriber in self.subscribers[field]: 
+          subscriber(data)    
   
   def get_and_set(self,field, func = lambda e:e):
     with self._lock:

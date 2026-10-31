@@ -108,10 +108,13 @@ defmodule Wit do
   def handleRequest(client,socket) do
     case :gen_tcp.recv(client, 0) do
       {:ok, data} ->
-        Log.detail(nil,"recieved request")
-        Log.detail(nil,data)
+        IO.inspect("recieved request")
         try do
-          case String.trim(data) |> JSON.decode! do
+          trimmedData = String.trim(data)
+          IO.inspect(trimmedData)
+          decodedData = trimmedData|> JSON.decode!
+          IO.inspect(decodedData)
+          case decodedData do
             %{"command" => list} ->
               if is_nil(Wit.runCommand(list)) do
                 Log.detail(nil,"Executed command: #{list |> Enum.join(" ")}")
@@ -119,13 +122,15 @@ defmodule Wit do
                 Log.error(nil,"Failed command: #{list |> Enum.join(" ")}")
               end
             %{"api" => request}->
-              Log.detail(nil,"Api request: #{request}")
+              Log.detail(nil,"Api request")
               WitApi.get(request)
             _ ->
               Log.error(nil,"Unknown received from gui")
           end
         rescue
-          _ ->
+          e ->
+          IO.inspect e
+          Log.error(nil,"Failed request handling")
           %{"success" => false} |> JSON.encode!
         end
         handleRequest(client,socket)
@@ -143,6 +148,7 @@ end
 
 defmodule WitApi do
   def get(request) do
+    IO.inspect request
     case request do
       # get all configs
       "config/all" ->
@@ -155,6 +161,10 @@ defmodule WitApi do
       # get all nodes connected
       "list" ->
         Naas.networkInfo(nil)
+
+      # get group infos
+      ["group/info", cookie] ->
+        Log.new |> Log.info("",[Naas.getGroupInfo(nil,cookie)|>Map.put("name",Naas.listGroup(:map)|>Map.get(cookie,nil))],"groupInfo")
 
       # get all group info
       "group/list" ->

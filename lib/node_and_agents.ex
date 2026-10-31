@@ -212,7 +212,7 @@ defmodule Naas do
       Cli.error("No group found with name");
       nil
     else
-      {:ok,file} = File.open("./groups/#{group}/.config", [:read])
+      {:ok,file} = File.open("./groups/#{name}/.config", [:read])
       data = file
       |> IO.read(:line)
       |> JSON.decode!
