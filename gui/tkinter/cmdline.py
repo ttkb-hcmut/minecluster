@@ -21,20 +21,17 @@ def arguments():
     help="Gui Port number"
   )
 
-  def parse_args(parse_args):
-    args = parse_args()
+  def parse_args(args):
     if args.hkind == "coco":
-      args.socketkind = socket.AF_INET
-      args.sport = ("localhost", int(args.sport))
-      args.gport = ("localhost", int(args.gport))
+      args.socketkind, args.sport, args.gport = \
+        socket.AF_INET, ("localhost", int(args.sport)), ("localhost", int(args.gport))
     elif args.hkind == "agott":
-      args.socketkind = socket.AF_UNIX
-      args.sport = args.sport
-      args.gport = args.gport
+      args.socketkind, args.sport, args.gport = \
+        socket.AF_UNIX, args.sport, args.gport
     else:
       raise TypeError(f"unknown {args.hkind=}")
     return args
 
-  x = parser.parse_args
-  parser.parse_args = lambda: parse_args(x)
+  _parse = parser.parse_args
+  parser.parse_args = lambda: parse_args(_parse())
   return parser
