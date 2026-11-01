@@ -29,7 +29,7 @@ class ScrollableList(ttk.Frame):
     row = Row(0)
     iterable = []
     for i in data:
-      if i is str:
+      if isinstance(i, str):
         a = ttk.Label(self.frameframe, text=f"{i}",justify="left",wraplength=self.canvas.winfo_width() - self.scrollbar.winfo_width())
       else:
         a = i
@@ -195,6 +195,7 @@ class ScrollableList2(ttk.Frame):
     self.old_frameframe.lift(self.frameframe)
     self.frameframe.grid(row=0,column=0,sticky="nsew")
     self.li = self.listItems(list)
+    self.bindings()
     self.frameframe.update_idletasks()
     if self.old_frameframe: 
       self.old_frameframe.destroy()
@@ -248,13 +249,15 @@ class ScrollableList2(ttk.Frame):
     self.frameframe.grid(row=0,column=0,sticky="nsew")
     self.li = self.listItems(list)
     self.toBottom = False
+    self.bindings()
 
+  def bindings(self):
     match sys.platform:
       case "win32" | "darwin":
-        self.frameframe.bind("<MouseWheel>", lambda e: self.canvas.yview_scroll(int(- e.delta/20),what="unit"))
+        self.frameframe.bind("<MouseWheel>", lambda e: self.canvas.yview_scroll(int(- e.delta/20),what="unit") or self.setBottom())
       case "linux":
-        self.bind("<Button-4>", lambda e: self.canvas.yview_scroll(int(- 5),what="unit"))
-        self.bind("<Button-5>", lambda e: self.canvas.yview_scroll(int(5),what="unit"))
+        self.frameframe.bind("<Button-4>", lambda e: self.canvas.yview_scroll(int(- 5),what="unit") or self.setBottom())
+        self.frameframe.bind("<Button-5>", lambda e: self.canvas.yview_scroll(int(5),what="unit") or self.setBottom())
     self.canvas.bind("<Configure>", lambda event: [i.configure(wraplength=event.width - self.scrollbar.winfo_width()) for i in self.li])
     
     
