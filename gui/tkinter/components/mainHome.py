@@ -3,7 +3,7 @@ from tkinter import ttk
 from components import model
 from components.stylingHelper import StyleEnum as Ste
 from components.stylingHelper import RowTracker as Row
-from .things import ScrollableList
+from .things import ScrollableList, ScrollableList2
     
 
 class NodeSelf(ttk.Frame):
@@ -174,14 +174,14 @@ class ConnectedList(ttk.Frame):
 
 
     # scrollable list ??? 
-    self.list = ScrollableList(self,controller,controller.get("nodeList"))
+    self.list = ScrollableList2(self,controller.get("nodeList"))
     self.list.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
 
-    controller.subscribe("nodeList",lambda data: self.refreshList(data,controller))
+    controller.subscribe("nodeList",lambda data: self.list.set(data))
     
     controller.sendFetch("api","list")
-  def refreshList(self,data,controller):
-    self.list.set(data)
+  # def refreshList(self,data,controller):
+  #   self.list.set(data)
     
   def fetchList(self,controller):
     controller.sendFetch("api","list")
@@ -202,7 +202,7 @@ class ChatWindow(ttk.Frame):
 
 
     # scrollable list ??? 
-    self.list = ScrollableList(self,controller,controller.get("msgFeed"),stickToBottom=True)
+    self.list = ScrollableList2(self,controller.get("msgFeed"),stickToBottom=True)
     self.list.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
 
 
@@ -212,14 +212,11 @@ class ChatWindow(ttk.Frame):
     self.enter = ttk.Button(self,text="Send",command=lambda: self.submit(controller))
     self.enter.grid(row=2,column=1,sticky="ns",padx=Ste.PAD.value)
 
-    controller.subscribe("msgFeed",lambda data: self.refreshList(data,controller))
-  def refreshList(self,data,controller):
+    controller.subscribe("msgFeed",lambda data: self.refreshList(data))
+  def refreshList(self,data):
     mk_msg = lambda x: f"You> {x.txt}" if x.sender is None else f"{x.sender}:{x.txt}"
     self.list.set([mk_msg(x) for x in data])
-    # is_at_bottom = self.list.getBottom()
-    # self.list.destroy()
-    # self.list = ScrollableList(self,controller,data,toBottom = is_at_bottom)
-    # self.list.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
+    
   def submit(self,controller):
     self.entry.focus_set()
     msg = self.entry.get().strip()
