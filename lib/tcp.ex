@@ -5,7 +5,13 @@ defmodule Wit do
     :gen_tcp.close(socket)
     port
   end
-
+  def getPython do
+    try do
+      System.find_executable("python")
+    rescue _ ->
+      System.find_executable("py")
+    end
+  end
   def start1(serverPort \\ nil,guiPort \\ nil) do
     {serverPort,guiPort} = case {serverPort,guiPort} do
       {nil,nil} -> {getFreePort(),getFreePort()}
@@ -16,23 +22,13 @@ defmodule Wit do
     {:ok,gtsSocket} = :gen_tcp.listen(serverPort, [:binary, packet: :line, active: false, reuseaddr: true])
     IO.puts("Elixir server listening on port #{serverPort}")
     Task.start_link(fn ->
-      try do
-        System.cmd(System.find_executable("python"),
-          [
-            "-u","./gui/tkinter/app.py",
-            "--hkind", "coco",
-            "--sport", "#{serverPort}",
-            "--gport", "#{guiPort}",
-          ])
-      rescue _ ->
-        System.cmd(System.find_executable("py"),
-        [
-          "-u","./gui/tkinter/app.py",
-          "--hkind", "coco",
-          "--sport", "#{serverPort}",
-          "--gport", "#{guiPort}",
-        ])
-      end
+      System.cmd(Wit.getPython,
+      [
+        "-u","./gui/tkinter/app.py",
+        "--hkind", "coco",
+        "--sport", "#{serverPort}",
+        "--gport", "#{guiPort}",
+      ])
     end)
     Process.spawn(fn -> Wit.listenServer(gtsSocket) end, [:link])
     Process.sleep(1000)
@@ -49,7 +45,7 @@ defmodule Wit do
     {:ok,gtsSocket} = :gen_tcp.listen(0, [:binary, ifaddr: { :local, serverPort }, packet: :line, active: false, reuseaddr: true])
     IO.puts("Elixir server listening at #{serverPort}")
     Task.start_link(fn ->
-      System.cmd(System.find_executable("python"),
+      System.cmd(Wit.getPython,
         [
           "-u","./gui/tkinter/app.py",
 					"--hkind", "agott",
@@ -65,9 +61,18 @@ defmodule Wit do
   end
 
   def pushToGui (data \\ nil) do
-    case Agent.get(:push_server, & &1) do
-      nil -> nil
-      a ->
+    case {Agent.get(:push_server, & &1),data} do
+      {nil,_} -> nil
+      {a,:kill} ->
+        try do
+          Process.send(a,:kill,[])
+        rescue
+          _ ->
+          Log.error(nil,"Kill Failed")
+          nil
+        end
+
+      {a,_} ->
         try do
           Process.send(a,{
             :data,
@@ -89,6 +94,8 @@ defmodule Wit do
         Log.detail(nil, "sending data",[data])
         :ok = :gen_tcp.send(socket,data <> "\n")
         Wit.pushServer(socket)
+      :kill ->
+        Log.detail(nil,"Closing the push server")
       _ ->
         "Push failed" |> Cli.warning
         Wit.pushServer(socket)
@@ -101,6 +108,7 @@ defmodule Wit do
         spawn(fn -> handleRequest(client,socket) end)
         listenServer(socket)
       {:error, :closed} ->
+        Wit.pushToGui(:kill)
         Cli.detail("Closing GUI socket")
     end
   end
