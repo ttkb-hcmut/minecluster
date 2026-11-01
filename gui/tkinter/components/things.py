@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from components import model
+import sys
 from components.stylingHelper import StyleEnum as Ste
 from components.stylingHelper import RowTracker as Row
 
@@ -28,7 +29,10 @@ class ScrollableList(ttk.Frame):
     row = Row(0)
     iterable = []
     for i in data:
-      a = ttk.Label(self.frameframe, text=f"{i}",justify="left",wraplength=self.canvas.winfo_width() - self.scrollbar.winfo_width())
+      if i is str:
+        a = ttk.Label(self.frameframe, text=f"{i}",justify="left",wraplength=self.canvas.winfo_width() - self.scrollbar.winfo_width())
+      else:
+        a = i
       a.grid(row=row.curr(),column=0,padx=Ste.PAD.value,sticky="ew")
       iterable.append(a)
       row.next()
@@ -89,7 +93,17 @@ class Tablerone(ttk.Frame):
 
   def none(self):
     return None
-
+  def cell(self,/,thingClass = None,id=None,doAfterCreated = None,**kwargs):
+    if thingClass is None:
+      return self.none()
+    else:
+      thing = thingClass(self,**kwargs)
+      if id is not None:
+        self.dict[id] = thing
+      if doAfterCreated is not None:
+        for func in doAfterCreated:
+          func(thing)
+      return thing
   def label(self, /, id=None, **kwargs):
     lab = ttk.Label(self, **kwargs, background="")
     if id is not None:
@@ -144,8 +158,11 @@ class Tablerone(ttk.Frame):
       self.dict[id] = button
     return button
 
-  def entry(self, /, id=None, **kwargs):
+  def entry(self, /, default="", id=None, **kwargs):
     ent = ttk.Entry(self, **kwargs, background="")
+    if default != "":
+      ent.delete(0,"end")
+      ent.insert(0, default)
     if id is not None:
       self.dict[id] = ent
     return ent
@@ -186,7 +203,12 @@ class ScrollableList2(ttk.Frame):
     row = Row(0)
     iterable = []
     for i in data:
-      a = ttk.Label(self.frameframe, text=f"{i}",justify="left",wraplength=self.canvas.winfo_width() - self.scrollbar.winfo_width())
+      if isinstance(i,str):
+        a = ttk.Label(self.frameframe, text=f"{i}",justify="left",wraplength=self.canvas.winfo_width() - self.scrollbar.winfo_width())
+      else:
+        a = i[0](self.frameframe)
+        for j in i[1:]:
+          j(a)
       a.grid(row=row.curr(),column=0,padx=Ste.PAD.value,sticky="ew")
       iterable.append(a)
       row.next()
@@ -219,7 +241,7 @@ class ScrollableList2(ttk.Frame):
     excess = 20*Ste.PAD.value
     self.bind("<Configure>", func = lambda event: self.canvas.itemconfig(self.window,width = event.width - excess))
     self.frame.bind("<Configure>",lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")) or (self.canvas.yview_moveto(1.0) if self.tryBottom and stickToBottom else False))
-    self.canvas.bind("<MouseWheel>", lambda e: self.canvas.yview_scroll(int(- e.delta/10),what="unit") if self.canvas.yview()[1] != 1.0 else None)
+    
     # end scrollable canvas stuff ###############################
 
     self.frameframe = ttk.Frame(self.frame)
@@ -227,6 +249,12 @@ class ScrollableList2(ttk.Frame):
     self.li = self.listItems(list)
     self.toBottom = False
 
+    match sys.platform:
+      case "win32" | "darwin":
+        self.frameframe.bind("<MouseWheel>", lambda e: self.canvas.yview_scroll(int(- e.delta/20),what="unit"))
+      case "linux":
+        self.bind("<Button-4>", lambda e: self.canvas.yview_scroll(int(- 5),what="unit"))
+        self.bind("<Button-5>", lambda e: self.canvas.yview_scroll(int(5),what="unit"))
     self.canvas.bind("<Configure>", lambda event: [i.configure(wraplength=event.width - self.scrollbar.winfo_width()) for i in self.li])
     
     

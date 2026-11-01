@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field, fields
 import threading
 
-_LOGGING = False
+_LOGGING = True
 
 @dataclass
 class Msg:
@@ -11,15 +11,15 @@ class Msg:
 @dataclass
 class Model:
   # GUI specific data fields ====================
-  currentTab: str = "home"
+  currentTab: str = ""
   msgFeed: list[Msg] = field(default_factory=list[Msg])
 
   # Application data fields =====================
   ## config/all
   configAll: dict = field(default_factory=dict)
   ## self
-  selfAddress: str = "nonode@nohost"
-  selfCookie: str = "balls"
+  selfAddress: str = "wait"
+  selfCookie: str = "wait"
   ## list
   nodeList: list = field(default_factory=list)
   central: list = field(default_factory=list)
@@ -44,11 +44,12 @@ class Updater:
       self.subscribers[field] = []
 
   def subscribe(self,field,func):
-    self.subscribers[field] = self.subscribers[field] + [func]
+    self.subscribers[field] = self.subscribers.get(field,[]) + [func]
     print(f"{field} -> {func}") if _LOGGING else None
 
   def setPushToServer(self,func):
     self.pushFunc = func
+    self.sendFetch("command",["start"])
 
   def sendFetch(self,api,data):
     message = {}
@@ -59,11 +60,12 @@ class Updater:
 
   def handleIncoming(self,data):
     for key in data.keys():
-      if key == "message":
-        [sender, group, message] = data[key]
-        self.pushMsgQueue(message,sender=sender)
-      else:
-        self.set(key, data[key])
+      match key: 
+        case "message":
+          [sender, group, message] = data[key]
+          self.pushMsgQueue(message,sender=sender)
+        case _:
+          self.set(key, data[key])
 
 
   def set(self,field, data):
@@ -75,7 +77,8 @@ class Updater:
         for subscriber in self.subscribers[field]: 
           subscriber(data)    
       else:
-        raise ValueError(f"Unknown datafield '{field}'")
+        for subscriber in self.subscribers[field]: 
+          subscriber(data)    
   
   def get_and_set(self,field, func = lambda e:e):
     with self._lock:

@@ -69,13 +69,13 @@ defmodule Wit do
       nil -> nil
       a ->
         try do
-          IO.inspect data
           Process.send(a,{
             :data,
             (data |> JSON.encode!)
-          },[])
-        rescue
-          _ ->
+            },[])
+          rescue
+            _ ->
+            IO.inspect data
             IO.puts "Push failed"
             nil
         end
@@ -86,7 +86,7 @@ defmodule Wit do
   def pushServer(socket) do
     receive do
       {:data, data} ->
-        Log.detail(nil, "sending data:#{data}")
+        Log.detail(nil, "sending data",[data])
         :ok = :gen_tcp.send(socket,data <> "\n")
         Wit.pushServer(socket)
       _ ->
@@ -108,9 +108,13 @@ defmodule Wit do
   def handleRequest(client,socket) do
     case :gen_tcp.recv(client, 0) do
       {:ok, data} ->
-        Log.detail(nil,data)
+        IO.inspect("recieved request")
         try do
-          case String.trim(data) |> JSON.decode! do
+          trimmedData = String.trim(data)
+          IO.inspect(trimmedData)
+          decodedData = trimmedData|> JSON.decode!
+          IO.inspect(decodedData)
+          case decodedData do
             %{"command" => list} ->
               if is_nil(Wit.runCommand(list)) do
                 Log.detail(nil,"Executed command: #{list |> Enum.join(" ")}")
@@ -118,12 +122,15 @@ defmodule Wit do
                 Log.error(nil,"Failed command: #{list |> Enum.join(" ")}")
               end
             %{"api" => request}->
+              Log.detail(nil,"Api request")
               WitApi.get(request)
             _ ->
               Log.error(nil,"Unknown received from gui")
           end
         rescue
-          _ ->
+          e ->
+          IO.inspect e
+          Log.error(nil,"Failed request handling")
           %{"success" => false} |> JSON.encode!
         end
         handleRequest(client,socket)
@@ -141,10 +148,11 @@ end
 
 defmodule WitApi do
   def get(request) do
+    IO.inspect request
     case request do
       # get all configs
       "config/all" ->
-        Log.new([Log.Info.new("configAll","",[Naas.getConfig(nil)])])
+        Log.new |> Log.info("",[Naas.getConfig(nil)],"configAll")
 
       # get self address and self cookie
       "self" ->
@@ -153,6 +161,10 @@ defmodule WitApi do
       # get all nodes connected
       "list" ->
         Naas.networkInfo(nil)
+
+      # get group infos
+      ["group/info", cookie] ->
+        Log.new |> Log.info("",[Naas.getGroupInfo(nil,cookie)|>Map.put("name",Naas.listGroup(:map)|>Map.get(cookie,nil))],"groupInfo")
 
       # get all group info
       "group/list" ->
