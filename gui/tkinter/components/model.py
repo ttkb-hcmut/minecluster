@@ -27,6 +27,8 @@ class Model:
   online: list = field(default_factory=list)
   ## group/list
   groupList: dict = field(default_factory=dict)
+  ## group/info
+  groupInfo: dict = field(default_factory=dict)
   ## group/status
   groupStatusName: str = ""
   groupStatusConnections: list = field(default_factory=list)

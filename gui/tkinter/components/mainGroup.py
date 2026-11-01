@@ -125,6 +125,16 @@ class GroupInfo(ttk.Frame):
 class GroupControls(ttk.Frame):
   def __init__(self,parent,controller):
     super().__init__(parent, relief= Ste.FRAME_RELIEF.value, padding=Ste.PAD.value)
+    self.currentlySelectedGroup : tk.StringVar = parent.currentlySelectedGroup
+    self.grid_columnconfigure(index=(0,),weight=1)
+    row = Row()
+    self.connect = ttk.Button(self,text="connect",command=lambda : self.connectGroup(controller))
+    self.connect.grid(row=row.curr(),column=0,sticky="nsew")
+
+  def connectGroup(self,controller):
+    if self.currentlySelectedGroup.get() == '' or self.currentlySelectedGroup.get() is None:
+      return
+    controller.sendFetch("command",["connect","group",controller.get("groupInfo")[0]["name"]])
 
 class MainGroup(ttk.Frame):
   def __init__(self,parent,controller):

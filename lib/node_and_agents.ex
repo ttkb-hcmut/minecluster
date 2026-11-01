@@ -19,15 +19,26 @@ defmodule Naas do
       fromFile = IO.read(file, :line)|> JSON.decode!
       conf = fn k,v -> fromFile |> Map.get(k,v) end
       data = %{
-        "address"  => conf.("address", "you@127.0.0.1"),
-        "cookie"   => conf.("cookie", "balls"),
-        "logLevel" => conf.("logLevel", ["info","detail","warning","error"]),
+        "address"   => conf.("address", "you@127.0.0.1"),
+        "cookie"    => conf.("cookie", "balls"),
+        "logLevel"  => conf.("logLevel", ["info","detail","warning","error"]),
+        "guiSocket" => conf.("guiSocket", "port"),
       }
       {:ok, _} = Agent.start_link(fn ->  data  end, name: :config)
       Cli.detail "Imported config to Agent"
+      File.write(".config", getConfig() |> JSON.encode!)
       # IO.inspect pid
     end)
-    Wit.start1
+    case Agent.get(:config,& &1) |> Map.get("guiSocket","port") do
+      "port"->
+        Wit.start1
+      "file"->
+        Wit.start2
+      "none"->
+        nil
+      _ ->
+        Wit.start1
+    end
   end
 
   def monosodiumglutamate(src \\:nonode@nohost, msg \\ "ping") do
@@ -362,7 +373,6 @@ defmodule Naas do
       |> List.foldl(%{}, fn {_,{group,cookie}},acc ->
         acc |> Map.put_new(cookie,group)
       end)
-      IO.inspect map
       map
     {{:error, reason},_} ->
       Cli.warning("failed to read ./groups directory: #{reason}");

@@ -8,7 +8,7 @@ defmodule Pleb do
     nil
   end
   def checkForHosts() do
-    {hosts,_} = Naas.networkInfo()
+    hosts = Naas.networkInfo(:host)
     if(hosts |> length > 0) do
       [host|_] = hosts
       host
