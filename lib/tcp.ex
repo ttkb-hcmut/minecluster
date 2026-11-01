@@ -6,10 +6,10 @@ defmodule Wit do
     port
   end
   def getPython do
-    try do
-      System.find_executable("python")
-    rescue _ ->
-      System.find_executable("py")
+    case {System.find_executable("python"),System.find_executable("py")} do
+      {nil,nil} -> Log.error(nil,"Cannot find Python on your system")
+      {nil,e} -> e
+      {e,nil} -> e
     end
   end
   def start1(serverPort \\ nil,guiPort \\ nil) do
