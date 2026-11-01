@@ -9,23 +9,23 @@ def arguments():
     formatter_class=argparse.RawDescriptionHelpFormatter,
   )
   parser.add_argument(
-    "--hkind", type=str,
+    '--hkind', type=str,
     help="Harbor kind"
   )
   parser.add_argument(
-    "--sport", type=str,
+    '--sport', type=str,
     help="Server Port number"
   )
   parser.add_argument(
-    "--gport", type=str,
+    '--gport', type=str,
     help="Gui Port number"
   )
 
   def parse_args(args):
-    if args.hkind == "coco":
+    if args.hkind.__eq__('coco'):
       args.socketkind, args.sport, args.gport = \
         socket.AF_INET, ("localhost", int(args.sport)), ("localhost", int(args.gport))
-    elif args.hkind == "agott":
+    elif args.hkind.__eq__('agott'):
       args.socketkind, args.sport, args.gport = \
         socket.AF_UNIX, args.sport, args.gport
     else:
