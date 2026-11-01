@@ -16,11 +16,11 @@ defmodule Command do
 
       res |> Map.update("",excess,fn e -> excess ++ e end)
       |> then(fn r ->
-      Cli.detail "Parsed:" <> (
+      Log.detail(nil, "Parsed:" <> (
         r |> Map.keys() |> Enum.map(fn e ->
           "\n  #{if e == "" do "<excess>" else e end} => [#{r |> Map.get(e,"")|> Enum.join(",")}]"
         end) |> Enum.join("")
-      )
+      ))
       r
       end)
     end
@@ -230,29 +230,29 @@ defmodule Command do
 end
 
 defmodule Cli do
-  @doc "type something"
-  @deprecated "Try using Log.Info and the Log modules instead"
+  @doc "Depricated. Try using Log.Info and the Log modules instead"
+  # @deprecated "Try using Log.Info and the Log modules instead"
   def info(input) do
     Log.flush Log.new [Log.Info.new(nil,input)]
     nil
   end
 
-  @doc ""
-  @deprecated "Try using Log.Detail and the Log modules instead"
+  @doc "Depricated.Try using Log.Detail and the Log modules instead"
+  # @deprecated "Try using Log.Detail and the Log modules instead"
   def detail(input) do
     Log.flush Log.new [Log.Detail.new(nil,input)]
     nil
   end
 
-  @doc ""
-  @deprecated "Try using Log.Warning and the Log modules instead"
+  @doc "Depricated. Try using Log.Warning and the Log modules instead"
+  # @deprecated "Try using Log.Warning and the Log modules instead"
   def warning(input) do
     Log.flush Log.new [Log.Warning.new(nil,input)]
     nil
   end
 
-  @doc ""
-  @deprecated "Try using Log.Error and the Log modules instead"
+  @doc "Depricated. Try using Log.Error and the Log modules instead"
+  # @deprecated "Try using Log.Error and the Log modules instead"
   def error(input) do
     Log.flush Log.new [Log.Error.new(nil,input)]
     nil

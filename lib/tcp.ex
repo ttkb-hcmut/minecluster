@@ -12,6 +12,12 @@ defmodule Wit do
       {e,nil} -> e
     end
   end
+  def tryConnectToGui(address,port) do
+    case :gen_tcp.connect(address,port, [:binary, packet: :line, active: false, reuseaddr: true]) do
+      {:ok, stgSocket} -> {:ok, stgSocket}
+      _ -> tryConnectToGui(address,port)
+    end
+  end
   def start1(serverPort \\ nil,guiPort \\ nil) do
     {serverPort,guiPort} = case {serverPort,guiPort} do
       {nil,nil} -> {getFreePort(),getFreePort()}
@@ -20,7 +26,7 @@ defmodule Wit do
       {s,g}     -> {s,g}
     end
     {:ok,gtsSocket} = :gen_tcp.listen(serverPort, [:binary, packet: :line, active: false, reuseaddr: true])
-    IO.puts("Elixir server listening on port #{serverPort}")
+    Log.detail(nil,"Elixir server listening on port #{serverPort}")
     Task.start_link(fn ->
       System.cmd(Wit.getPython,
       [
@@ -31,9 +37,9 @@ defmodule Wit do
       ])
     end)
     Process.spawn(fn -> Wit.listenServer(gtsSocket) end, [:link])
-    Process.sleep(1000)
-    {:ok, stgSocket} = :gen_tcp.connect(:localhost,guiPort, [:binary, packet: :line, active: false, reuseaddr: true])
-    IO.puts("Elixir server sending on port #{guiPort}...")
+    # Process.sleep(1000)
+    {:ok, stgSocket} = tryConnectToGui(:localhost,guiPort)
+    Log.detail(nil,"Elixir server sending on port #{guiPort}...")
     Agent.update(:push_server, fn _ -> Process.spawn(fn -> Wit.pushServer(stgSocket) end, [:link]) end)
   end
 
@@ -43,7 +49,7 @@ defmodule Wit do
 		guiPort = File.cwd! <> "/.tmp/sock" <> uuid <> guiPart
 		File.mkdir_p(File.cwd! <> "/.tmp")
     {:ok,gtsSocket} = :gen_tcp.listen(0, [:binary, ifaddr: { :local, serverPort }, packet: :line, active: false, reuseaddr: true])
-    IO.puts("Elixir server listening at #{serverPort}")
+    Log.detail(nil,"Elixir server listening at #{serverPort}")
     Task.start_link(fn ->
       System.cmd(Wit.getPython,
         [
@@ -54,9 +60,9 @@ defmodule Wit do
         ])
       end)
     Process.spawn(fn -> Wit.listenServer(gtsSocket) end, [:link])
-    Process.sleep(1000)
-    {:ok, stgSocket} = :gen_tcp.connect({ :local, guiPort }, 0, [:binary, packet: :line, active: false, reuseaddr: true])
-    IO.puts("Elixir server sending at #{guiPort}...")
+    # Process.sleep(1000)
+    {:ok, stgSocket} = tryConnectToGui({ :local, guiPort }, 0)
+    Log.detail(nil,"Elixir server sending at #{guiPort}...")
     Agent.update(:push_server, fn _ -> Process.spawn(fn -> Wit.pushServer(stgSocket) end, [:link]) end)
   end
 
@@ -80,8 +86,7 @@ defmodule Wit do
             },[])
           rescue
             _ ->
-            IO.inspect data
-            IO.puts "Push failed"
+            Log.error(nil, "Push failed")
             nil
         end
     end
@@ -91,7 +96,7 @@ defmodule Wit do
   def pushServer(socket) do
     receive do
       {:data, data} ->
-        Log.detail(nil, "sending data",[data])
+        Log.detail(nil, "sending data ",[data])
         :ok = :gen_tcp.send(socket,data <> "\n")
         Wit.pushServer(socket)
       :kill ->
@@ -116,13 +121,8 @@ defmodule Wit do
   def handleRequest(client,socket) do
     case :gen_tcp.recv(client, 0) do
       {:ok, data} ->
-        IO.inspect("recieved request")
         try do
-          trimmedData = String.trim(data)
-          IO.inspect(trimmedData)
-          decodedData = trimmedData|> JSON.decode!
-          IO.inspect(decodedData)
-          case decodedData do
+          case String.trim(data)|> JSON.decode! do
             %{"command" => list} ->
               if is_nil(Wit.runCommand(list)) do
                 Log.detail(nil,"Executed command: #{list |> Enum.join(" ")}")
@@ -130,20 +130,19 @@ defmodule Wit do
                 Log.error(nil,"Failed command: #{list |> Enum.join(" ")}")
               end
             %{"api" => request}->
-              Log.detail(nil,"Api request")
+              Log.detail(nil,"Api request ",[request])
               WitApi.get(request)
             _ ->
               Log.error(nil,"Unknown received from gui")
           end
         rescue
-          e ->
-          IO.inspect e
+          _ ->
           Log.error(nil,"Failed request handling")
           %{"success" => false} |> JSON.encode!
         end
         handleRequest(client,socket)
       {:error, :closed} ->
-        IO.puts("GUI disconnected.")
+        Log.detail(nil,"GUI disconnected.")
         :ok = :gen_tcp.close(socket)
     end
   end
@@ -156,7 +155,6 @@ end
 
 defmodule WitApi do
   def get(request) do
-    IO.inspect request
     case request do
       # get all configs
       "config/all" ->

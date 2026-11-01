@@ -22,7 +22,6 @@ defmodule App do
 		IO.puts ("hello " <> (pid |> :erlang.pid_to_list |> to_string) <> "!")
     Naas.startup()
     # {:ok, _} = Agent.start_link(fn -> IO.puts("hello from " <> (self() |> :erlang.pid_to_list |> to_string) <> "!"); loop() end)
-    IO.puts("child done!")
 		{:ok, pid}
 	end
 end

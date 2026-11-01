@@ -373,7 +373,6 @@ defmodule Naas do
       |> List.foldl(%{}, fn {_,{group,cookie}},acc ->
         acc |> Map.put_new(cookie,group)
       end)
-      IO.inspect map
       map
     {{:error, reason},_} ->
       Cli.warning("failed to read ./groups directory: #{reason}");
