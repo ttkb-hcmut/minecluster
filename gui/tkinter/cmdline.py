@@ -9,32 +9,29 @@ def arguments():
     formatter_class=argparse.RawDescriptionHelpFormatter,
   )
   parser.add_argument(
-    "--hkind", type=str,
+    '--hkind', type=str,
     help="Harbor kind"
   )
   parser.add_argument(
-    "--sport", type=str,
+    '--sport', type=str,
     help="Server Port number"
   )
   parser.add_argument(
-    "--gport", type=str,
+    '--gport', type=str,
     help="Gui Port number"
   )
 
-  def parse_args(parse_args):
-    args = parse_args()
-    if args.hkind == "coco":
-      args.socketkind = socket.AF_INET
-      args.sport = ("localhost", int(args.sport))
-      args.gport = ("localhost", int(args.gport))
-    elif args.hkind == "agott":
-      args.socketkind = socket.AF_UNIX
-      args.sport = args.sport
-      args.gport = args.gport
+  def parse_args(args):
+    if args.hkind.__eq__('coco'):
+      args.socketkind, args.sport, args.gport = \
+        socket.AF_INET, ("localhost", int(args.sport)), ("localhost", int(args.gport))
+    elif args.hkind.__eq__('agott'):
+      args.socketkind, args.sport, args.gport = \
+        socket.AF_UNIX, args.sport, args.gport
     else:
       raise TypeError(f"unknown {args.hkind=}")
     return args
 
-  x = parser.parse_args
-  parser.parse_args = lambda: parse_args(x)
+  _parse = parser.parse_args
+  parser.parse_args = lambda: parse_args(_parse())
   return parser

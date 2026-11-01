@@ -10,8 +10,8 @@ from components import model
 from minecluster import ServerGUISocket
 import cmdline
 
-if __name__ == "__main__":
+if __name__.__eq__('__main__'):
   controller = model.Updater()
   args = cmdline.arguments().parse_args()
-  ServerGUISocket(controller, args)
-  App(controller)
+  ServerGUISocket(controller, args) # In-place updates.
+  App(controller) # In-place updates.

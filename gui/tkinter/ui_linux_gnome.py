@@ -8,6 +8,7 @@ start(gi) \
   .require_version("Adw", "1") \
   .require_version("Pango", "1.0") \
   .finish()
+
 from gi.repository import (
     Gtk as tk,
     GObject as tkobject,
