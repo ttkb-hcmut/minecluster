@@ -18,5 +18,6 @@ talk bout the 2 pythons
 tbd
 
 == Reflection
-glaze the fuck out of elixir
 shit on the mandetory "production" way this lab forces us to do like the fuck (mini kupernetes)
+glaze the fuck out of elixir @distex
+#bibliography("works.yml")
