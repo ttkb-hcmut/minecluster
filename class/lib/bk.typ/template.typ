@@ -32,10 +32,12 @@
 	)
 	set par(justify: true)
 	set text(size: 11pt, font: "New Computer Modern")
-	show heading: it => [
-		#set text(size: 16pt)
-		#it.body
-	]
+	// show heading(numbering: "I.1.1"): it => [
+		
+  //   #set text(size: 16pt)
+  //   #it.body
+
+	// ]
 	set table(
 		inset: (y: 4pt),
 		stroke: 0.5pt
