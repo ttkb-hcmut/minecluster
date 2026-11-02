@@ -7,7 +7,7 @@
   write about how hes running on his daily driver fedora
 == Methodology
 we follow the fucking lab notes to the letter as best we can
-=== Ip naming thingy
+=== Ip naming thingy / name system
 we doin tailscale cause we already doin that so like its chill bruh we are gonna skip over naming hosts and ips and worker even though khang did rename the ubuntu to worker for no reason
 == Implementation
 Hell
