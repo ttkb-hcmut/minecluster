@@ -5,7 +5,7 @@
 )
 #cover(
 	[Distributed Systems Lab 1:\ Kubenetes and Kafka],
-	instructor: [],
+	instructor: [Đỗ Quang Hào],
 	version: "v1.0",
 	department: [Department of Computer
 	Science],
@@ -14,44 +14,45 @@
 #pagebreak()
 #set heading(numbering: "I.1.")
 
-= Introduction
-In recent years, ...
 
-== Preliminaries
-To start, ...
+// uhh we probably dont need intro and prelim for such a simple report
+// = Introduction
+// In recent years, ...
+
+// == Preliminaries
+// To start, ...
 
 
-= Hardware and our setup before the thingy thingy
-== Le Cong Minh Khang
-  write about stupi dum dum ubuntu 24lts whatever
-== Le Nguyen Gia Bao
-  write about how hes running on his daily driver fedora
-== Lê Anh Quân
-  write about ...
+= Starting point
+This section outlines the particular setups we did the lab assignment on:
+- Le Cong Minh Khang: Ubuntu 24.04.1 lts running on a windows 10 laptop via WSL
+- Le Nguyen Gia Bao: TODO(Bao):write about how hes running on his daily driver fedora
+- Lê Anh Quân: write about ...
 = Methodology
 == lab notes
-we follow the fucking lab notes to the letter as best we can. Specifically, the flow is:
- 1. Set up k8s on each machine
- 2. Connect each machine (as node) to the same k8s cluster
- 3. Apply the system spec to the k8s cluster
- 4. Each machine
-   1. Machine A runs consumer
-   2. Machine B runs producer
+we follow lab notes available to us on the lms as best we can with a few tweaks for our specific circumstances. Specifically:
++ Disable `SELINUX` and firewalls
++ Setting up hostnames for the machines is handled via Tailscale, as we have already have it set up before hand. It allows you to refer to Tailscale assigned names similarly across the web
++ Configure and install kubernetes and the container runtime 
++ Connect each machine (as node) to the same k8s cluster
++ Apply the system spec to the k8s cluster
++ Each machine
+ - Machine A runs consumer
+ - Machine B runs producer
 TODO: diagram
-== Ip naming thingy
-we doin tailscale cause we already doin that so like its chill bruh we are gonna skip over naming hosts and ips and worker even though khang did rename the ubuntu to worker for no reason
 = Implementation
-Hell
-talk bout the kafka yaml
-talk bout the consumer python (client.py) and producer python (server.py)
-== Ip naming thingy / name system
-we doin tailscale cause we already doin that so like its chill bruh we are gonna skip over naming hosts and ips and worker even though khang did rename the ubuntu to worker for no reason
+Our kafka.yaml is largely based on the provided file on the LMS, with a few minor tweaks (rewriting some lines to be single lined?) and a chunk of the code deleted(?) TODO(bao):explain
+
+To test the connections, we use 2 python files with `confluent_kafka` imported `server.py` and `client.py`.
+- `server.py` is a simple `Producer` sending test messages.
+- `client.py` is a simple `Consumer` that periodically polls for and prints any messages it finds to the terminal.
+If everything is setup correctly, the `Consumer` should repeatedly print out `no msg` until the `Producer` sends messages for it to print
 
 = Result
 
-tbd
+TODO: images (idk how to put a video here)
 
 = Related works
-shit on the mandetory "production" way this lab forces us to do like the fuck (contrast this against the convenient, high-level CLIs like minikube @minikube and k3s @k3s). This "production" way is involved, but lends itself to much expressiveness so that we cater our system to our needs.
-glaze the fuck out of elixir @distex
+TODO(Bao): complain about the mandetory "production" way this lab wants us to do (contrast this against the convenient, high-level CLIs like minikube @minikube and k3s @k3s). This "production" way is involved, but lends itself to much expressiveness so that we cater our system to our needs.
+TODO(Khang): glaze the fuck out of elixir and the Erlang's communication @distex
 #bibliography("works.yml")
