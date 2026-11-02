@@ -18,6 +18,6 @@ talk bout the 2 pythons
 tbd
 
 == Reflection
-shit on the mandetory "production" way this lab forces us to do like the fuck (minikube @minikube)
+shit on the mandetory "production" way this lab forces us to do like the fuck (contrast this against the convenient, high-level CLIs like minikube @minikube). This "production" way is involved, but lends itself to much expressiveness so that we cater our system to our needs.
 glaze the fuck out of elixir @distex
 #bibliography("works.yml")
