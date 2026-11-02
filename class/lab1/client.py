@@ -1,12 +1,13 @@
 from confluent_kafka import Consumer, KafkaError
+import warnings
 
 conf = { 'bootstrap.servers': 'kafka-0:9092,kafka-1:9092', 'group.id': 'ttkb-hcmut-0', 'auto.offset.reset': 'earliest' }
 
-def on_(msg):
-  print(f'new post: {msg.value().decode('utf-8')}')
+def with_recv(msg):
+  print(f"new post: {msg.value().decode('utf-8')}")
   pass
 
-def main(on_):
+def main(k):
   as_consumer = Consumer(conf)
   as_consumer.subscribe(['newpost'])
   try:
@@ -18,9 +19,11 @@ def main(on_):
       if msg.error():
         print(f'error: {msg.error()}')
         break
-      on_(msg)
+      k(msg)
   except KeyboardInterrupt: print()
   finally:
     as_consumer.close()
 
-if __name__.__eq__('__main__'): main(on_)
+if __name__.__eq__('__main__'):
+  warnings.warn("for debugging only: executing main function")
+  main(with_recv)
