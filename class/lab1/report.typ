@@ -4,7 +4,7 @@
   course: [Distributed Systems],
 )
 #cover(
-	[Distributed Systems Lab 1:\ Kubenetes and Kafka],
+	[Distributed Systems Lab 1:\ Kubernetes and Kafka],
 	instructor: [Đỗ Quang Hào],
 	version: "v1.0",
 	department: [Department of Computer
