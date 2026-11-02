@@ -8,7 +8,13 @@
 === Lê Anh Quân
   write about ...
 == Methodology
-we follow the fucking lab notes to the letter as best we can
+we follow the fucking lab notes to the letter as best we can. Specifically, the flow is:
+ 1. Set up k8s on each machine
+ 2. Connect each machine (as node) to the same k8s cluster
+ 3. Apply the system spec to the k8s cluster
+ 4. Each machine
+   1. Machine A runs client.py
+   2. Machine B runs server.py
 === Ip naming thingy / name system
 we doin tailscale cause we already doin that so like its chill bruh we are gonna skip over naming hosts and ips and worker even though khang did rename the ubuntu to worker for no reason
 == Implementation
