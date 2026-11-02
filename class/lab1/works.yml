@@ -1,0 +1,16 @@
+distex:
+  type: Web
+  url: https://elixir.hexdocs.pm/main/distributed-tasks.html
+  title: Distributed tasks and tags
+disterl:
+  type: Web
+  url: https://www.erlang.org/doc/system/distributed.html
+  title: Distributed Erlang
+minikube:
+  type: Web
+  url: https://minikube.sigs.k8s.io/docs/
+  title: minikube
+k3s:
+  type: Web
+  url: https://k3s.io/
+  title: K3s
