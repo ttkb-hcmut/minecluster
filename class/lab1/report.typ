@@ -26,7 +26,7 @@ we doin tailscale cause we already doin that so like its chill bruh we are gonna
 == Result
 tbd
 
-== Reflection
+== Related works
 shit on the mandetory "production" way this lab forces us to do like the fuck (contrast this against the convenient, high-level CLIs like minikube @minikube and k3s @k3s). This "production" way is involved, but lends itself to much expressiveness so that we cater our system to our needs.
 glaze the fuck out of elixir @distex
 #bibliography("works.yml")
