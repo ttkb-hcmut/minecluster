@@ -16,12 +16,12 @@ we follow the fucking lab notes to the letter as best we can. Specifically, the 
    1. Machine A runs client.py
    2. Machine B runs server.py
 TODO: diagram
-=== Ip naming thingy / name system
-we doin tailscale cause we already doin that so like its chill bruh we are gonna skip over naming hosts and ips and worker even though khang did rename the ubuntu to worker for no reason
 == Implementation
 Hell
 talk bout the kafka yaml
 talk bout the 2 pythons
+=== Ip naming thingy / name system
+we doin tailscale cause we already doin that so like its chill bruh we are gonna skip over naming hosts and ips and worker even though khang did rename the ubuntu to worker for no reason
 
 == Result
 tbd
