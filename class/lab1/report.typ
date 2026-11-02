@@ -54,5 +54,5 @@ TODO: images (idk how to put a video here)
 
 = Related works
 TODO(Bao): complain about the mandetory "production" way this lab wants us to do (contrast this against the convenient, high-level CLIs like minikube @minikube and k3s @k3s). This "production" way is involved, but lends itself to much expressiveness so that we cater our system to our needs.
-TODO(Khang): glaze the fuck out of elixir and the Erlang's communication @distex
+TODO(Khang): glaze the fuck out of Elixir @distex and the Erlang's communication @disterl
 #bibliography("works.yml")
