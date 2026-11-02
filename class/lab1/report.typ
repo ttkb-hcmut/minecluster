@@ -5,6 +5,8 @@
   write about stupi dum dum ubuntu 24lts whatever
 === Le Nguyen Gia Bao
   write about how hes running on his daily driver fedora
+=== Lê Anh Quân
+  write about ...
 == Methodology
 we follow the fucking lab notes to the letter as best we can
 === Ip naming thingy / name system
