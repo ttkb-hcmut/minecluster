@@ -18,6 +18,6 @@ talk bout the 2 pythons
 tbd
 
 == Reflection
-shit on the mandetory "production" way this lab forces us to do like the fuck (mini kupernetes)
+shit on the mandetory "production" way this lab forces us to do like the fuck (minikube @minikube)
 glaze the fuck out of elixir @distex
 #bibliography("works.yml")

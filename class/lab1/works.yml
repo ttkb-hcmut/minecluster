@@ -7,3 +7,8 @@ disterl:
   type: Web
   url: https://www.erlang.org/doc/system/distributed.html
   title: Distributed Erlang
+
+minikube:
+  type: Web
+  url: https://minikube.sigs.k8s.io/docs/
+  title: minikube
