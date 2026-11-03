@@ -32,8 +32,8 @@
 	)
 	set par(justify: true)
 	set text(size: 11pt, font: "New Computer Modern")
-	// show heading(numbering: "I.1.1"): it => [
-		
+	// show heading: it => [
+    
   //   #set text(size: 16pt)
   //   #it.body
 

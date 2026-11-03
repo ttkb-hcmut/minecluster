@@ -1,3 +1,4 @@
+swapoff -a
 sudo kubeadm reset
 sudo kubeadm init
 mkdir -p $HOME/.kube

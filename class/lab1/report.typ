@@ -25,7 +25,7 @@
 
 = Starting point
 This section outlines the particular setups we did the lab assignment on:
- - Le Cong Minh Khang: Ubuntu 24.04.1 lts running on a windows 10 laptop via WSL
+ - Le Cong Minh Khang: Ubuntu 24.04.1 lts running on a Windows 10 laptop via WSL
  - Le Nguyen Gia Bao: TODO(Bao):write about how hes running on his daily driver fedora
  - Lê Anh Quân: write about ...
 = Methodology
