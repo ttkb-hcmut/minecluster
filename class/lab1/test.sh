@@ -1,4 +1,5 @@
 NODE_ID="$(hostname | awk -F'-' '{print $2}')"
+swapoff -a
 sudo kubeadm reset
 sudo kubeadm init
 mkdir -p $HOME/.kube
