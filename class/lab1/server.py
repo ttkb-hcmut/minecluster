@@ -8,8 +8,15 @@ def on_sent(msg):
 
 def main(k):
   as_producer = Producer(conf)
+
+  def on_sent(err, msg, k):
+    if err is not None:
+      print(f"err: {err}")
+      return
+    k(msg)
+
   for i in range(10):
-    as_producer.produce('NEWPOST', f"Test message {i}".encode('utf-8'), callback=k)
+    as_producer.produce('NEWPOST', f"Test message {i}".encode('utf-8'), callback=lambda err, msg: on_sent(err, msg, k))
     as_producer.poll(0)
   as_producer.flush()
 
