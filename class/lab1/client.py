@@ -9,7 +9,7 @@ def with_recv(msg):
 
 def main(k):
   as_consumer = Consumer(conf)
-  as_consumer.subscribe(['newpost'])
+  as_consumer.subscribe(['NEWPOST'])
   try:
     while True:
       msg = as_consumer.poll(1.0)

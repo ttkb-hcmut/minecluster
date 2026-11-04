@@ -9,7 +9,7 @@ def on_sent(msg):
 def main(k):
   as_producer = Producer(conf)
   for i in range(10):
-    as_producer.produce('newpost', f"Test message {i}".encode('utf-8'), callback=k)
+    as_producer.produce('NEWPOST', f"Test message {i}".encode('utf-8'), callback=k)
     as_producer.poll(0)
   as_producer.flush()
 
