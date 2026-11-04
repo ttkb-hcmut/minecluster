@@ -54,5 +54,6 @@ TODO: images (idk how to put a video here)
 
 = Related works
 TODO(Bao): complain about the mandetory "production" way this lab wants us to do (contrast this against the convenient, high-level CLIs like minikube @minikube and k3s @k3s). This "production" way is involved, but lends itself to much expressiveness so that we cater our system to our needs.
-TODO(Khang): glaze the fuck out of Elixir @distex and the Erlang's communication @disterl
+Another distributed system framework is Erlang's @disterl Elixir @distex . The setup process of it is simple as you only need to install Elixir and epmd which is available on windows and linux. Then, connection is as simple as starting up any client with elixir using 1 function with a name, then connect to other started elixir client on the same network by 1 line command/function. Finally communication potocol is barebones yet robust. Call a defined function with passed in data on a different client with :erpc, and utilize Elixir's Agents, tasks, processes to design a network for distributing work, communicating messages, transfer files between the clients.
+
 #bibliography("works.yml")
