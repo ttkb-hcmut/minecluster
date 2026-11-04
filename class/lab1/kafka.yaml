@@ -54,7 +54,7 @@ spec:
               NODE_ID="$(hostname | awk -F'-' '{print $2}')"
               CLUSTER_ID="bbbaaa"
               echo "node.id=${NODE_ID}" >> /opt/kafka/config/server.properties
-              echo "advertised.listeners=PLAINTEXT://kafka-${NODE_ID}.kafka-service.kafka.svc.cluster.local:9092,CONTROLLER://kafka-${NODE_ID}.kafka.svc.cluster.local:9093" >> /opt/kafka/config/server.properties
+              echo "advertised.listeners=PLAINTEXT://kafka-${NODE_ID}.kafka-service.kafka.svc.cluster.local:9092,CONTROLLER://kafka-${NODE_ID}.kafka-service.kafka.svc.cluster.local:9093" >> /opt/kafka/config/server.properties
               cat /kafka/config/base.properties >> /opt/kafka/config/server.properties
               if [ ! -f /var/lib/kafka/data/meta.properties ]; then
                 /opt/kafka/bin/kafka-storage.sh format -t "${CLUSTER_ID}" -c /opt/kafka/config/server.properties
