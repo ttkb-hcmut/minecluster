@@ -1,4 +1,4 @@
-from confluent_kafka import Consumer, KafkaError
+from confluent_kafka import Consumer
 import warnings
 
 conf = { 'bootstrap.servers': 'kafka-0:9092,kafka-1:9092', 'group.id': 'ttkb-hcmut-0', 'auto.offset.reset': 'earliest' }
