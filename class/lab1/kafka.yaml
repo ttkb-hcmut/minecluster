@@ -52,7 +52,7 @@ spec:
             - |
               set -e
               NODE_ID="$(hostname | awk -F'-' '{print $2}')"
-              CLUSTER_ID="bbbaaa"
+              CLUSTER_ID="uhaGgVSiR3W05yPkn_pKgw"
               echo "node.id=${NODE_ID}" >> /opt/kafka/config/server.properties
               echo "advertised.listeners=PLAINTEXT://kafka-${NODE_ID}.kafka-service.kafka.svc.cluster.local:9092,CONTROLLER://kafka-${NODE_ID}.kafka-service.kafka.svc.cluster.local:9093" >> /opt/kafka/config/server.properties
               cat /kafka/config/base.properties >> /opt/kafka/config/server.properties
