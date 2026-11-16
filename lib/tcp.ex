@@ -137,7 +137,8 @@ defmodule Wit do
           end
         rescue
           _ ->
-          Log.error(nil,"Failed request handling")
+          Log.error(nil,"Failed handling request: "<>Log.dataHold,[data])
+          IO.inspect(__STACKTRACE__)
           %{"success" => false} |> JSON.encode!
         end
         handleRequest(client,socket)
@@ -158,7 +159,7 @@ defmodule WitApi do
     case request do
       # get all configs
       "config/all" ->
-        Log.new |> Log.info("",[Naas.getConfig(nil)],"configAll")
+        Log.new |> Log.info("",Naas.getConfig(nil),"configAll")
 
       # get self address and self cookie
       "self" ->
@@ -170,15 +171,21 @@ defmodule WitApi do
 
       # get group infos
       ["group/info", cookie] ->
-        Log.new |> Log.info("",[Naas.getGroupInfo(nil,cookie)|>Map.put("name",Naas.listGroup(:map)|>Map.get(cookie,nil))],"groupInfo")
+        Log.new |> Log.info("",Naas.getGroupInfo(nil,cookie)|>Map.put("name",Naas.listGroup(:map)|>Map.get(cookie,nil)),"groupInfo")
 
       # get all group info
       "group/list" ->
-        Log.new |> Log.info("",[Naas.listGroup(:map)],"groupList")
+        Log.new |> Log.info("",Naas.listGroup(:map),"groupList")
 
       # get current group's information
       "group/status" ->
         Naas.groupStatus()
+
+      # get available server versions
+      "server/list" ->
+        Log.new()
+        |> Log.info("",Mj.availableVersions("java")|>Map.keys(),"versionsJava")
+        |> Log.info("",Mj.availableVersions("bedrock"),"versionsBedrock")
 
       # unknown
       _ ->

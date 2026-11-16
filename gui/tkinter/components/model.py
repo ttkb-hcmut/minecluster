@@ -33,7 +33,10 @@ class Model:
   groupStatusName: str = ""
   groupStatusConnections: list = field(default_factory=list)
   groupStatusCookie: str = ""
-
+  groupStatusServer: list = field(default_factory=list)
+  ## server/list
+  versionsJava: list = field(default_factory = list)
+  versionsBedrock: list = field(default_factory = list)
 class Updater:
   def __init__(self):
     self._lock = threading.Lock()
@@ -52,6 +55,7 @@ class Updater:
   def setPushToServer(self,func):
     self.pushFunc = func
     self.sendFetch("command",["start"])
+    self.sendFetch("api","server/list")
 
   def sendFetch(self,api,data):
     message = {}
@@ -62,6 +66,7 @@ class Updater:
 
   def handleIncoming(self,data):
     for key in data.keys():
+      # self.sendFetch("api",[key,data[key]])
       match key: 
         case "message":
           [sender, group, message] = data[key]
@@ -76,11 +81,8 @@ class Updater:
         print(f"Setting field {field} = {data}") if _LOGGING else None
         setattr(self.model, field, data)
 
-        for subscriber in self.subscribers[field]: 
-          subscriber(data)    
-      else:
-        for subscriber in self.subscribers[field]: 
-          subscriber(data)    
+      for subscriber in self.subscribers[field]: 
+        subscriber(data)
   
   def get_and_set(self,field, func = lambda e:e):
     with self._lock:

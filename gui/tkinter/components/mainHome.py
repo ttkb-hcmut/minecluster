@@ -3,7 +3,7 @@ from tkinter import ttk
 from components import model
 from components.stylingHelper import StyleEnum as Ste
 from components.stylingHelper import RowTracker as Row
-from .things import ScrollableList, ScrollableList2
+from .things import ScrollableList, ScrollableList2, BoxScaler
     
 
 class NodeSelf(ttk.Frame):
@@ -230,8 +230,8 @@ class MainHome(ttk.Frame):
     super().__init__(parent)
     self.id = "home"
     self.grid(row=0, column=0, sticky="nsew")
-    self.grid_columnconfigure(index=(0),weight=2)
-    self.grid_columnconfigure(index=(1),weight=1)
+    self.grid_columnconfigure(index=(0),weight=2000)
+    self.grid_columnconfigure(index=(2),weight=1000)
     self.grid_rowconfigure(index=(2),weight=1)
     if controller.get("currentTab") != self.id:
       self.grid_remove()
@@ -243,13 +243,15 @@ class MainHome(ttk.Frame):
 
   def initcontent(self,controller):
     self.nodeself = NodeSelf(self,controller)
-    self.nodeself.grid(row=0, column=0, columnspan=2, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
+    self.nodeself.grid(row=0, column=0, columnspan=3, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
     self.connectNode = ConnectNode(self,controller)
-    self.connectNode.grid(row=1, column=0, columnspan=2, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
+    self.connectNode.grid(row=1, column=0, columnspan=3, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
     self.chat = ChatWindow(self,controller)
     self.chat.grid(row=2, column=0, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
     self.connected = ConnectedList(self,controller)
-    self.connected.grid(row=2, column=1, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
+    self.connected.grid(row=2, column=2, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
+    
+    BoxScaler(self,self.chat,self.connected,"horizontal").grid(row= 2, column = 1, sticky="nsew")
 
   def showHideMenu(self,data,controller):
     if data == self.id:

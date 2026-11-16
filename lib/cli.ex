@@ -327,7 +327,17 @@ defmodule Cli do
         c: %{
           group: %{
             i: "Connect to group with provided group name following",
-            a: Naas.listGroup()|> Enum.join("\n"),
+            a: Log.Info.lazy(
+                  fn ->
+                  Naas.listGroup()
+                  |> List.foldl({nil,"Select a Group:",[]},
+                    fn ele,{id,template,data} ->
+                      { id,
+                        template <> "\n  #{Log.dataHold}",
+                        [ele|data]
+                      }
+                    end)
+                end),
             c: %{
               "": %{
                 i: "Input a group name from listed",
@@ -375,6 +385,26 @@ defmodule Cli do
               },
             }
           },
+          delete: %{
+            i: "Deletes the group with provided arg",
+            a: Log.Info.lazy(
+                  fn ->
+                  Naas.listGroup()
+                  |> List.foldl({nil,"Delete Group #{IO.ANSI.red()}[THIS ACTION IS NOT REVERSIBLE]#{IO.ANSI.reset()}:",[]},
+                    fn ele,{id,template,data} ->
+                      { id,
+                        template <> "\n  #{Log.dataHold}",
+                        [ele|data]
+                      }
+                    end)
+                end),
+            c: %{
+              "": %{
+                i: "Deletes the group with provided arg",
+                a: fn {_,_,[c|_]} -> Naas.deleteGroup(c) end
+              }
+            }
+          },
           status: %{
             i: "Shows information about the group you are in",
             a: fn _ -> Naas.groupStatus() |> Log.flush; nil end
@@ -397,7 +427,7 @@ defmodule Cli do
           },
           sync: %{
             i: "Collects all other connections from other nodes in this group",
-            a: fn _ -> Naas.syncGroupConnection() end
+            a: fn _ -> Naas.syncGroupInfo() end
           },
           role: %{
             i: "Changes your current role in the group",

@@ -85,7 +85,7 @@ defmodule Naas do
     end
   end
   def setRole(role) do
-
+    Naas.syncGroupInfo()
     if not(Agent.get(:group,& &1) |> is_nil) do
       case {Agent.get(:role,& &1),role} do
       {:host,r} when r != :host ->
@@ -228,7 +228,12 @@ defmodule Naas do
       |> IO.read(:line)
       |> JSON.decode!
       File.close(file)
-      data
+      %{
+        "central"     => data |> Map.get("central"    ,%{}),
+        "connections" => data |> Map.get("connections",[Node.self |> Atom.to_string]),
+        "cookie"      => data |> Map.get("cookie"     ,cookie),
+        "server"      => data |> Map.get("server"     ,nil)
+      }
     end
   end
   def setGroupInfo(data,group) do
@@ -279,7 +284,7 @@ defmodule Naas do
           false ->
             Node.set_cookie(Node.self, c |> String.to_atom)
         end end)
-        setRole(:online)
+        Naas.setRole(:online)
       else
         Cli.error "Group's Cookie not found"
       end
@@ -295,27 +300,41 @@ defmodule Naas do
   #   nil
   # end
 
-  def syncGroupConnection() do
+  def syncGroupInfo() do
     case Agent.get(:group, & &1) do
-    nil -> Cli.error("Not connected to a group")
+    nil -> Log.error(nil,"Not connected to a group")
     g ->
       case getGroupInfo(g) do
-      nil -> nil
-      info when not (info |> is_nil) ->
+      nil ->
+        Log.error(nil,"Unknown group: "<> Log.dataHold(),[g])
+      info ->
         c = info |> Map.get("cookie", nil)
-        {_,d} = info
-        |> Map.get_and_update("connections", fn l ->
-          {l, Node.list
-          |> Naas.inParallel(fn ele ->
-            :erpc.call(ele,fn -> Naas.getGroupInfo(nil, c) |> Map.get("connections",[]) end)
-          end)
-          |> List.foldl([Node.self() |> Atom.to_string |l], fn ele,acc ->
-            ele ++ acc
-          end)
-          |> Enum.uniq}
+        {_,d} = info |> Map.get_and_update("connections",
+        fn l ->
+          {
+            l,
+            [
+              Node.self() |> Atom.to_string
+              |
+              Node.list
+              |> Naas.inParallel(fn ele ->
+                :erpc.call(ele,fn -> [ Node.self() |> Atom.to_string() | Naas.getGroupInfo(nil, c) |> Map.get("connections",[])] end)
+              end)
+            ] |> Enum.uniq
+          }
         end)
-        File.write("./groups/#{g}/.config", d |> JSON.encode!)
-        Cli.detail d
+        Naas.setGroupInfo(d,g)
+
+        # broadcast new connections to the rest of the connections
+        Node.list
+        |> Naas.inParallel(fn ele ->
+          :erpc.call(ele,fn ->
+            Naas.getGroupInfo(nil,c)
+            |> Map.put("connection",d["connections"])
+            |> Naas.setGroupInfo(listGroup(:map) |> Map.get(c, nil))
+          end)
+        end)
+        Log.detail(nil,Log.dataHold(),[d])
       end
     end
     nil
@@ -387,6 +406,12 @@ defmodule Naas do
     |> then(fn t -> :crypto.hash(:sha256, t) end)
     |> Base.encode32
   end
+  def deleteGroup(name) do
+    case File.rm_rf("./groups/#{name}") do
+      {:ok,_} -> Log.info(nil,"Deleted group "<>Log.dataHold(),name)
+      _ -> Log.error(nil,"Failed to delete group "<>Log.dataHold(),name)
+    end
+  end
   def makeGroup(name) do
     # blocks reuse of name
     name = case name in listGroup() do
@@ -421,7 +446,8 @@ defmodule Naas do
         %{
           "central" => %{},
           "connections" => [Node.self |> Atom.to_string],
-          "cookie" => cookie
+          "cookie" => cookie,
+          "server" => nil
         }
       [{_,first}|_] ->
         {_, newMap} = first
@@ -449,21 +475,27 @@ defmodule Naas do
   def groupStatus() do
     case Agent.get(:group, & &1) do
     nil ->
-      Log.new |> Log.info("Not currently in a group",[nil],"groupStatusName")
+      Log.new
+      |> Log.info("Not currently in a group",nil,"groupStatusName")
     a ->
       case getGroupInfo(a) do
       nil ->
-        Log.new |> Log.error("Currently in an unknown group",[nil],"groupStatusError")
+        Log.new
+        |> Log.error("Currently in an unknown group",[nil],"groupStatusError")
       data ->
         Log.new
-        |> Log.info("In group: #{Log.dataHold}", [a], "groupStatusName")
+        |> Log.info("In group: #{Log.dataHold}", a, "groupStatusName")
         |> Log.info(
-          "Connections:#{ data |> Map.get("connections") |> Enum.map("\n  #{Log.dataHold}") |> Enum.join("")}",
+          "Connections:#{ data |> Map.get("connections") |> Enum.map(fn _ -> "\n  #{Log.dataHold}" end) |> Enum.join("")}",
           data |> Map.get("connections"), "groupStatusConnections"
         )
         |> Log.info(
           "Cookie:\n  #{Log.dataHold}",
           data |> Map.get("cookie"), "groupStatusCookie"
+        )
+        |> Log.info(
+          "Server:\n  #{Log.dataHold} #{Log.dataHold}",
+          data |> Map.get("server"), "groupStatusServer"
         )
       end
     end

@@ -31,11 +31,11 @@ class MainConfig(ttk.Frame):
     self.cl = ScrollableList2(self)
     self.cl.grid(row=1, column=0, columnspan=3, sticky="nsew",padx=Ste.PAD.value,pady=Ste.PAD.value)
     self.table = Tablerone(self.cl.frameframe)
-    controller.subscribe("configAll",lambda data:self.refreshConfigs(data[0]))
+    controller.subscribe("configAll",lambda data:self.refreshConfigs(data))
     controller.sendFetch("api","config/all")
   
   def submit(self,controller):
-    dic = controller.get("configAll")[0]
+    dic = controller.get("configAll")
     for k,v in dic.items():
       newVal = self.table.get(id=k).get()
       oldVal = v if isinstance(v,str) else ",".join(v)

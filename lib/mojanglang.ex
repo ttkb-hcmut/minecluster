@@ -40,41 +40,61 @@ defmodule Mj do
     end
   end
   def download(plat,vers,api) do
-    :inets.start()
-    :ssl.start()
-    {:ok, resp} = :httpc.request(:get, {api, []}, [], [body_format: :binary])
-    {{_, 200, ~c"OK"}, _headers, body} = resp
+    case "./jars/#{plat}-#{vers}" |> File.exists? do
+      true -> nil
+      false ->
+      :inets.start()
+      :ssl.start()
+      {:ok, resp} = :httpc.request(:get, {api, []}, [], [body_format: :binary])
+      {{_, 200, ~c"OK"}, _headers, body} = resp
 
-    case plat do
-    "java" ->
-      File.mkdir_p!("./jars/#{plat}-#{vers}")
-      File.write!("./jars/#{plat}-#{vers}/server.jar", body)
-    "bedrock" ->
-      File.mkdir_p!("./jars/#{plat}-#{vers}")
-      File.write!("./jars/#{plat}-#{vers}/server.zip", body)
+      case plat do
+      "java" ->
+        File.mkdir_p!("./jars/#{plat}-#{vers}")
+        File.write!("./jars/#{plat}-#{vers}/server.jar", body)
+      "bedrock" ->
+        File.mkdir_p!("./jars/#{plat}-#{vers}")
+        File.write!("./jars/#{plat}-#{vers}/server.zip", body)
+      end
     end
+
   end
   def withInstall(plat,vers) do
     group = Agent.get(:group, & &1)
-    case {group,versionToApi(plat,vers),plat} do
-      {nil,_,_} ->
-        Cli.error("Not in a group to install the server in")
-      {_,nil,_} -> nil
-      {_,api,"java"} ->
+    groupInfo = Naas.getGroupInfo(group)
+    existingServer = groupInfo |> Map.get("server",nil)
+    case {group,existingServer,versionToApi(plat,vers),plat} do
+      {nil,_,_,_} ->
+        Log.error(nil,"Not in a group to install the server in")
+      {_,a,_,_} when not is_nil(a) ->
+        Log.error(nil,"Already has a server in group: #{Log.dataHold()} #{Log.dataHold()}",a)
+      {_,_,nil,_} ->
+        Log.error(nil,"Unknown version")
+      {_,_,api,"java"} ->
         download("java",vers,api)
+        File.rm_rf("./groups/#{group}/data")
         File.mkdir_p("./groups/#{group}/data/versions/#{vers}")
-      {_,api,"bedrock"} ->
+
+        groupInfo
+        |> Map.put("server", ["java",vers])
+        |> Naas.setGroupInfo(group)
+      {_,_,api,"bedrock"} ->
         download("bedrock",vers,api)
         Cli.detail("Extracting zip...")
+        File.rm_rf("./groups/#{group}/data")
         {:ok, _} = :zip.unzip(~c"./jars/#{plat}-#{vers}/server.zip",[cwd: ~c"./groups/#{group}/data/"])
         Cli.detail("Done extracting!")
+
+        groupInfo
+        |> Map.put("server", ["java",vers])
+        |> Naas.setGroupInfo(group)
     end
   end
   def runServer(withInstall\\nil) do
     group = Agent.get(:group, & &1)
     case Naas.getGroupInfo(group) do
     nil ->
-      Cli.error("Not in a group to start the server in")
+      Log.error(nil,"Not in a group to start the server in")
     _ ->
       if not is_nil(withInstall) do
         {plat,vers} = withInstall

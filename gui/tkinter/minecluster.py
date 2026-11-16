@@ -7,7 +7,7 @@ def receiveLoop(controller, stgSocket):
   conn, addr = stgSocket.accept()
   while True:
     try:
-      received = conn.recv(1024).decode('utf-8').strip()
+      received = conn.recv(8196).decode('utf-8').strip()
       controller.handleIncoming(json.loads(received))
     except Exception as e:
       # self.root.after(0, self.update_ui, f"Error: {e}")

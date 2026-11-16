@@ -25,6 +25,7 @@ defmodule Host do
     receive do
       :start ->
         # start the mc server
+        Log.info(nil,"Starting server...")
         Mj.runServer()
         Naas.broadcastMessage "Pls join mc server on ip:\n#{Node.self |> Atom.to_string}"
         runServer()

@@ -106,7 +106,12 @@ defmodule Log do
   def cliZipper(input \\ %Log.Info{}) do
     {_,res} = input.template
     |> String.split(Log.dataHold())
-    |> List.foldl({input.data,[]},fn ele, {data,res} ->
+    |> List.foldl({
+      case input.data do
+        [_|_] -> input.data
+        a -> [a]
+      end,
+      []},fn ele, {data,res} ->
       case data do
         [head|tail] ->
           {tail, [head,ele|res]}
@@ -114,7 +119,7 @@ defmodule Log do
           {[], [ele|res]}
       end
     end)
-    res |> Enum.reverse |> Enum.join("")
+    res |> Enum.reverse |> Enum.filter(fn x -> is_binary(x) end) |> Enum.join("")
   end
   def guiInfoDataFormat(input \\ %Log.Info{}) do
     if not is_nil(input.lazy) do
@@ -191,7 +196,8 @@ defmodule Log do
       false ->
         self.list
         |> Enum.map(fn l ->
-          l.toCli.(l) |> IO.puts
+          l.toCli.(l)
+          |> IO.puts
         end)
         self
     end
