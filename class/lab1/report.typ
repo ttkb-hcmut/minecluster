@@ -1,7 +1,7 @@
 #import "../lib/bk.typ/template.typ": *
 #show: doc.with(
 	department: [Computer Science Department],
-  course: [Distributed Systems],
+	course: [Distributed Systems],
 )
 #cover(
 	[Distributed Systems Lab 1:\ Kubernetes and Kafka],
