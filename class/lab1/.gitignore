@@ -1,1 +1,3 @@
 .venv
+*.qcow2
+result
