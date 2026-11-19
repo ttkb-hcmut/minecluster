@@ -1,5 +1,10 @@
-{ config, pkgs, ... }:
+{ pkgs, ... }:
+
+let imports = [ /etc/nixos/configuration.nix ]; in
 
 {
-  imports = [ /etc/nixos/configuration.nix ];
+  inherit imports;
+  environment.systemPackages = with pkgs; [ kubectl kubernetes ];
+  services.kubernetes.roles = [ "master" "node" ];
+  services.kubernetes.easyCerts = true;
 }
