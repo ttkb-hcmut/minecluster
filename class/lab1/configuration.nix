@@ -9,8 +9,12 @@ let services = {
   kubernetes.addons.dns.enable = true;
 }; in
 
-{
-  inherit imports services;
-  environment.systemPackages = with pkgs; [ kubectl kubernetes ];
-  networking.firewall.enable = false;
-}
+let environment = {
+  systemPackages = with pkgs; [ kubectl kubernetes ];
+}; in
+
+let networking = {
+  firewall.enable = false;
+}; in
+
+{ inherit imports services environment networking; }
