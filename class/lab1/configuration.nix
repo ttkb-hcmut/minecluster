@@ -1,5 +1,7 @@
 { pkgs, ... }:
 
+let master_addr = "127.0.0.1"; in
+
 let imports = [ /etc/nixos/configuration.nix ]; in
 
 let services = {
@@ -14,6 +16,7 @@ let environment = {
 }; in
 
 let networking = {
+  extraHosts = "${master_addr} ";
   firewall.enable = false;
 }; in
 
