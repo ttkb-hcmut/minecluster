@@ -2,12 +2,15 @@
 
 let imports = [ /etc/nixos/configuration.nix ]; in
 
+let services = {
+  kubernetes.roles = [ "master" "node" ];
+  kubernetes.easyCerts = true;
+  kubernetes.apiserver = { securePort = 6443; };
+  kubernetes.addons.dns.enable = true;
+}; in
+
 {
-  inherit imports;
+  inherit imports services;
   environment.systemPackages = with pkgs; [ kubectl kubernetes ];
-  services.kubernetes.roles = [ "master" "node" ];
-  services.kubernetes.easyCerts = true;
-  services.kubernetes.apiserver = { securePort = 6443; };
-  services.kubernetes.addons.dns.enable = true;
   networking.firewall.enable = false;
 }
