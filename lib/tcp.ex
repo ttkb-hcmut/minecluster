@@ -96,8 +96,11 @@ defmodule Wit do
   def pushServer(socket) do
     receive do
       {:data, data} ->
+        size = String.length(data)
         Log.detail(nil, "sending data ",[data])
-        :ok = :gen_tcp.send(socket,data <> "\n")
+        Log.detail(nil, "sending size "<>Log.dataHold,[Integer.to_string(size)])
+        :ok = :gen_tcp.send(socket,<<size::unsigned-integer-size(32)>>)
+        :ok = :gen_tcp.send(socket,data)
         Wit.pushServer(socket)
       :kill ->
         Log.detail(nil,"Closing the push server")
