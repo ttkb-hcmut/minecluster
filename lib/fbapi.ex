@@ -30,27 +30,57 @@ end
 defmodule Firebase1 do
   @moduledoc "Restful impl, internals are implemented based on https://firebase.google.com/docs/hosting/api-deploy"
 
-	alias Mint.{HTTP}
+	alias Mint.{HTTP1}
 
 	def init() do
-		{:ok, conn} = HTTP.connect(:http, "firebasehosting.googleapis.com", 80)
+		{:ok, conn} = HTTP1.connect(:https, "firebasehosting.googleapis.com", 443)
 		{:ok, conn}
-  end
+	 end
 
-	def check(conn, project_id, auth) do
-		extract = fn xs -> xs |> List.foldl([], fn elem, acc ->
-			case elem do
-				{:status, _ref, x} -> [{:status, x} | acc]
-				_ -> acc
-			end
-		end) end
-		{:ok, conn, _} = HTTP.request(conn, "POST", "/v1beta1/projects/#{project_id}/sites", [{"Authorization", auth}, {"Content-Type", "application/json"}], "")
+	# def check(conn, project_id, auth) do
+	# 	{:ok, conn, _} = HTTP.request(conn, "POST", "/v1beta1/projects/#{project_id}/sites", [{"Authorization", auth}, {"Content-Type", "application/json"}], "")
+	# 	receive do
+	# 		message ->
+	# 			case HTTP.stream(conn, message) do
+	# 				:unknown -> {:unknown, conn, nil}
+	# 				{:error, conn, err, _sth} -> {:error, conn, err}
+	# 			  {:ok, conn, responses} -> {:ok, conn, extract.(responses)}
+	# 			end
+	# 	end
+	#  end
+
+  def extract(xs), do: xs |> List.foldl([], fn elem, acc ->
+    # IO.inspect(elem)
+    case elem do
+      {:status, _ref, x} -> [{:status, x} | acc]
+      {:data, _ref, x} -> [{:data, Jason.decode!(x)} | acc]
+      _ -> acc
+    end
+  end)
+
+  def make_version(conn) do
+    project_id = "asimov-54739"
+    site_id = "asimov-54739"
+    auth = Goth.fetch!(App.Goth)
+    msg = """
+      {
+        "config": {
+          "headers": [{
+            "glob": "**",
+            "headers": {
+              "Cache-Control": "max-age=1800"
+            }
+          }]
+        }
+      }
+    """
+		{:ok, conn, _} = HTTP1.request(conn, "POST", "/v1beta1/projects/#{project_id}/sites/#{site_id}/versions", [{"Authorization", "Bearer #{auth.token}"}, {"Content-Type", "application/json"}], msg)
 		receive do
 			message ->
-				case HTTP.stream(conn, message) do
+				case HTTP1.stream(conn, message) do
 					:unknown -> {:unknown, conn, nil}
 					{:error, conn, err, _sth} -> {:error, conn, err}
-				  {:ok, conn, responses} -> {:ok, conn, extract.(responses)}
+				  {:ok, conn, responses} -> {:ok, conn, extract(responses)}
 				end
 		end
   end
