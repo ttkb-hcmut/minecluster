@@ -2,12 +2,22 @@ import socket
 import threading
 import json
 
+def receiveThe(conn,size):
+  buf = bytearray()
+  while len(buf) < size:
+    chunk = conn.recv(size - len(buf))
+    if not chunk:
+      raise ConnectionError("Socket closed before receiving expected bytes")
+    buf.extend(chunk)
+  return buf
+
 def receiveLoop(controller, stgSocket):
   stgSocket.listen()
   conn, addr = stgSocket.accept()
   while True:
     try:
-      received = conn.recv(8196).decode('utf-8').strip()
+      left = int.from_bytes(receiveThe(conn,4),"big",signed=False)
+      received = receiveThe(conn,left).decode('utf-8').strip()
       controller.handleIncoming(json.loads(received))
     except Exception as e:
       # self.root.after(0, self.update_ui, f"Error: {e}")

@@ -14,3 +14,7 @@ central
 temp
 jars
 __pycache__
+
+/.firebase
+.firebaserc
+firebase.json
