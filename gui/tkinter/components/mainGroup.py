@@ -168,6 +168,9 @@ class GroupControls(ttk.Frame):
     self.currGroup.newRow(
       self.currGroup.button(text="Copy Cookie", command = lambda: copyToClipboard(self,self.currentCookie.get())),
     )
+    self.currGroup.newRow(
+      self.currGroup.button(text="Become Central", command = lambda: controller.sendFetch("command",["group","role","central"])),
+    )
     self.currGroup.newRow(self.currGroup.cell(Tablerone,id = "installServer"))
     self.installServer = self.currGroup.get(id="installServer")
     self.installServer.newRow(self.installServer.label(text="Group has no server"))
