@@ -3,7 +3,7 @@ from tkinter import ttk
 from components import model
 from components.stylingHelper import StyleEnum as Ste
 from components.stylingHelper import RowTracker as Row
-from .things import ScrollableList, ScrollableList2, BoxScaler
+from .things import ScrollableList, ScrollableList2, BoxScaler, Tablerone
     
 
 class NodeSelf(ttk.Frame):
@@ -174,10 +174,26 @@ class ConnectedList(ttk.Frame):
 
 
     # scrollable list ??? 
-    self.list = ScrollableList2(self,controller.get("nodeList"))
+    self.list = ScrollableList2(self)
     self.list.grid(row=1,column=0,columnspan=2,sticky="nsew",padx=Ste.PAD.value)
+    self.list.grid_columnconfigure(index=0,weight=1)
+    self.list.frameframe.grid_columnconfigure(index=(0,),weight=1)
+    self.listTable = Tablerone(self.list.frameframe,col=1)
+    self.listTable.grid(row=0,column=0,sticky="new")
+    self.listTable.grid_columnconfigure(index=(0,),weight=1)
+    self.listTable.newRow(self.listTable.label(text="Node List:"))
+    self.listTable.newRow(self.listTable.cell(ScrollableList2,id ="nodeList",list = controller.get(("nodeList"))))
+    self.listTable.newRow(self.listTable.label(text="Host:"))
+    self.listTable.newRow(self.listTable.cell(ScrollableList2,id ="host"    ,list = controller.get(("host"    ))))
+    self.listTable.newRow(self.listTable.label(text="Central:"))
+    self.listTable.newRow(self.listTable.cell(ScrollableList2,id ="central" ,list = controller.get(("central" ))))
+    self.listTable.newRow(self.listTable.label(text="Civilian:"))
+    self.listTable.newRow(self.listTable.cell(ScrollableList2,id ="online"  ,list = controller.get(("online"  ))))
 
-    controller.subscribe("nodeList",lambda data: self.list.set(data))
+    controller.subscribe("nodeList",lambda data: self.listTable.get(id = "nodeList").set(data))
+    controller.subscribe("host"    ,lambda data: self.listTable.get(id = "host"    ).set(data))
+    controller.subscribe("central" ,lambda data: self.listTable.get(id = "central" ).set(data))
+    controller.subscribe("online"  ,lambda data: self.listTable.get(id = "online"  ).set(data))
     
     controller.sendFetch("api","list")
   # def refreshList(self,data,controller):
