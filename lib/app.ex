@@ -18,10 +18,7 @@ defmodule App do
 
 	def start(_type, _arg) do
 		{:ok, pid} = App.Supervisor.start_link(:ok)
-		# IO.puts ("hello world " <> PID.to_string(pid))
-		IO.puts ("hello " <> (pid |> :erlang.pid_to_list |> to_string) <> "!")
     Naas.startup()
-    # {:ok, _} = Agent.start_link(fn -> IO.puts("hello from " <> (self() |> :erlang.pid_to_list |> to_string) <> "!"); loop() end)
 		{:ok, pid}
 	end
 end
@@ -34,6 +31,7 @@ defmodule App.Supervisor do
 	@impl true
 	def init(_init_arg) do
 		children = [
+      {Goth, name: App.Goth, source: {:service_account, System.fetch_env!("GOOGLE_KEY") |> Jason.decode!()}}
 		]
 		Supervisor.init(children, strategy: :one_for_one)
 	end
