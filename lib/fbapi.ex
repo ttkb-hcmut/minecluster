@@ -17,7 +17,8 @@ defmodule Firebase0 do
   def sendZipFile(filepath) do
 		result = System.cmd "firebase", ["deploy", filepath]
 		case result do
-			{out, 0} -> {:ok}
+			{"", 0} -> {:ok}
+      {out, 0} -> {:err_unhandled_out, out}
 			{errmsg, errnum} ->
 				errmsg = errmsg |> String.trim
 				Log.error(nil, errmsg)

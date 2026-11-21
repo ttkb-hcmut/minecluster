@@ -35,7 +35,7 @@ defmodule Naas do
       "file"->
         Wit.start2
       "none"->
-        Cli.start
+        nil
       _ ->
         Cli.start
     end
