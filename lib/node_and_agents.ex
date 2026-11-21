@@ -35,9 +35,9 @@ defmodule Naas do
       "file"->
         Wit.start2
       "none"->
-        nil
+        Cli.start
       _ ->
-        Wit.start1
+        Cli.start
     end
   end
 
@@ -64,7 +64,7 @@ defmodule Naas do
           _ ->
             l |> Log.info("#{IO.ANSI.green()}#{Log.dataHold} - #{Log.dataHold}: #{Log.dataHold}#{IO.ANSI.reset()}",[src,group,msg], "message")
         end end)
-        IO.inspect log
+        # IO.inspect log
         log |> Log.flush
         log |> Log.flush(true) |> Wit.pushToGui
 
@@ -167,6 +167,9 @@ defmodule Naas do
     |> Log.info("Self Cookie:\n  #{Log.dataHold}",Node.get_cookie()|>Atom.to_string,"selfCookie")
   end
   def startNode(address\\nil,cookie\\nil) do
+    if Node.alive? do
+      Naas.stopNode()
+    end
     {address,cookie} = if address == "nonode@nohost" do
       {nil,nil}
     else
@@ -174,20 +177,27 @@ defmodule Naas do
     end
     {r, _} = case {getConfig("address"),address} do
       {nil,nil} ->
-        Cli.error "No address found in arg or config";
+        Log.error(nil,"No address found in arg or config")
         {:error,nil}
-      {a,nil} -> Node.start(a|> String.to_atom)
-      {_,a} -> Node.start(a|> String.to_atom)
+      {a,nil} ->
+        Log.detail(nil,"Started default address: "<>Log.dataHold,[a])
+        Node.start(a|> String.to_atom)
+      {_,a} ->
+        Log.detail(nil,"Started arg address: "<>Log.dataHold,[a])
+        Node.start(a|> String.to_atom)
     end
     case {r, getConfig("cookie"),cookie} do
-      {:error,_,_} -> nil
-      {_,nil,nil} -> Node.set_cookie(:"")
+      {:error,_,_} ->
+        Log.detail(nil,"No start no cookie")
+      {_,nil,nil} ->
+        Node.set_cookie(Node.self,:"")
+        Log.detail(nil,"Started no cookie")
       {_,c,nil} ->
-        Node.set_cookie(c|> String.to_atom)
-        Cli.detail "Started node with address: #{Node.self() |> Atom.to_string}"
+        Node.set_cookie(Node.self,c|> String.to_atom)
+        Log.detail(nil,"Started default cookie: "<>Log.dataHold,[c])
       {_,_,c} ->
-        Node.set_cookie(c|> String.to_atom)
-        Cli.detail "Started node with address: #{Node.self() |> Atom.to_string}"
+        Node.set_cookie(Node.self,c|> String.to_atom)
+        Log.detail(nil,"Started arg cookie: "<>Log.dataHold,[c])
     end
     WitApi.get("self")
     nil
@@ -199,8 +209,9 @@ defmodule Naas do
     {_,c,nil} -> Node.set_cookie(c|> String.to_atom)
     {_,_,c} -> Node.set_cookie(c|> String.to_atom)
     end
+    Log.detail(nil, "Connecting as #{Log.dataHold} #{Log.dataHold}", [Node.self,Node.get_cookie] )
     # address = if(address |> String.contains?(".")) do address else address<>".local" end
-    case Node.connect(address |> String.to_atom) do
+    res = case Node.connect(address |> String.to_atom) do
     true ->
       Cli.info "Successfully connected to nodes:#{
         Node.list() |> Enum.map(fn ele -> "\n  #{ele |> Atom.to_string}" end) |> Enum.join("")
@@ -210,6 +221,7 @@ defmodule Naas do
     :ignored -> Cli.error("Local node is not alive"); :ignored
     end
     WitApi.get("list")
+    res
   end
   def getGroupInfo(group, cookie\\nil) do
     name = case cookie do
@@ -272,10 +284,10 @@ defmodule Naas do
         self = Node.self |> Atom.to_string
         l |> Naas.inParallel(fn ele ->
           if( self != ele
-          and Node.ping(ele|> String.to_atom) == :pong
-          and :erpc.call(ele|> String.to_atom, fn -> Naas.cookieIs c end)
+          # and Node.ping(ele|> String.to_atom) == :pong
+          # and :erpc.call(ele|> String.to_atom, fn -> Naas.cookieIs c end)
           ) do
-            connectNode(ele,c)
+            Naas.connectNode(ele,c)
           else false end
         end)
         |> List.foldl(false, fn ele,acc -> acc or ele end)
@@ -318,7 +330,10 @@ defmodule Naas do
               |
               Node.list
               |> Naas.inParallel(fn ele ->
-                :erpc.call(ele,fn -> [ Node.self() |> Atom.to_string() | Naas.getGroupInfo(nil, c) |> Map.get("connections",[])] end)
+                :erpc.call(ele,fn -> [ Node.self() |> Atom.to_string() | (Naas.getGroupInfo(nil, c) |> Map.get("connections",[]))] end)
+              end)
+              |> List.foldl([], fn ele,acc ->
+                ele ++ acc
               end)
             ] |> Enum.uniq
           }

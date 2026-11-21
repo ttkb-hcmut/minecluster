@@ -39,8 +39,8 @@ defmodule Wit do
     Process.spawn(fn -> Wit.listenServer(gtsSocket) end, [:link])
     # Process.sleep(1000)
     {:ok, stgSocket} = tryConnectToGui(:localhost,guiPort)
-    Log.detail(nil,"Elixir server sending on port #{guiPort}...")
     Agent.update(:push_server, fn _ -> Process.spawn(fn -> Wit.pushServer(stgSocket) end, [:link]) end)
+    Log.detail(nil,"Elixir server sending on port #{guiPort}...")
   end
 
   def start2(serverPart \\ ".serv", guiPart \\ ".gui") do
@@ -69,12 +69,17 @@ defmodule Wit do
   def pushToGui (data \\ nil) do
     case {Agent.get(:push_server, & &1),data} do
       {nil,_} -> nil
+        Log.warning(nil,"No push server")
+        Process.sleep(1000)
+        Wit.pushToGui(data)
       {a,:kill} ->
         try do
           Process.send(a,:kill,[])
+          Agent.update(:push_server, fn _ -> nil end)
         rescue
-          _ ->
+          e ->
           Log.error(nil,"Kill Failed")
+          IO.inspect([e,__STACKTRACE__])
           nil
         end
 
@@ -97,8 +102,7 @@ defmodule Wit do
     receive do
       {:data, data} ->
         size = String.length(data)
-        Log.detail(nil, "sending data ",[data])
-        Log.detail(nil, "sending size "<>Log.dataHold,[Integer.to_string(size)])
+        Log.detail(nil, "sending #{Log.dataHold} bytes: #{Log.dataHold}",[Integer.to_string(size),data])
         :ok = :gen_tcp.send(socket,<<size::unsigned-integer-size(32)>>)
         :ok = :gen_tcp.send(socket,data)
         Wit.pushServer(socket)
@@ -122,6 +126,7 @@ defmodule Wit do
   end
 
   def handleRequest(client,socket) do
+    Log.detail(nil,"Ready to recieve")
     case :gen_tcp.recv(client, 0) do
       {:ok, data} ->
         try do
@@ -139,15 +144,17 @@ defmodule Wit do
               Log.error(nil,"Unknown received from gui")
           end
         rescue
-          _ ->
+          e ->
           Log.error(nil,"Failed handling request: "<>Log.dataHold,[data])
-          IO.inspect(__STACKTRACE__)
-          %{"success" => false} |> JSON.encode!
+          IO.inspect([e,__STACKTRACE__])
         end
         handleRequest(client,socket)
       {:error, :closed} ->
         Log.detail(nil,"GUI disconnected.")
         :ok = :gen_tcp.close(socket)
+      a ->
+        Log.error(nil,"Evil third recv result")
+        IO.inspect(a)
     end
   end
 
@@ -196,7 +203,7 @@ defmodule WitApi do
 
     end |> then(fn res -> case is_nil(res) or not is_struct(res,Log) do
       true->
-        1
+        Log.warning(nil,"Pushing invalid")
       false ->
         res |> Log.flush(true) |> Wit.pushToGui
         nil

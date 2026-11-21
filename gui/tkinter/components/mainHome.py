@@ -214,7 +214,7 @@ class ChatWindow(ttk.Frame):
 
     controller.subscribe("msgFeed",lambda data: self.refreshList(data))
   def refreshList(self,data):
-    mk_msg = lambda x: f"You> {x.txt}" if x.sender is None else f"{x.sender}:{x.txt}"
+    mk_msg = lambda x: f"You> {x.txt}" if x.sender is None else f"{x.sender}: {x.txt}"
     self.list.set([mk_msg(x) for x in data])
     
   def submit(self,controller):

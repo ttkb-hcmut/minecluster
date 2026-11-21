@@ -99,15 +99,14 @@ defmodule NodeCentral do
   end
   def getCentralNode() do
     self = Node.self()
-    c = Naas.cookieIs
     list = [self|Node.list()]
     |> Naas.inParallel(fn ele ->
       :erpc.call(ele, fn ->
         { ele,
           Agent.get(:role, & &1) == :central
-          and Naas.cookieIs c
         } end)
     end)
+    |> IO.inspect
     |> Enum.filter(fn {_,v} -> v end)
     if (list |> length == 0) do
       nil
