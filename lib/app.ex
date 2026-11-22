@@ -31,7 +31,7 @@ defmodule App.Supervisor do
 	@impl true
 	def init(_init_arg) do
 		children = [
-      {Goth, name: App.Goth, source: {:service_account, System.fetch_env!("GOOGLE_KEY") |> Jason.decode!()}}
+      # {Goth, name: App.Goth, source: {:service_account, System.fetch_env!("GOOGLE_KEY") |> Jason.decode!()}}
 		]
 		Supervisor.init(children, strategy: :one_for_one)
 	end

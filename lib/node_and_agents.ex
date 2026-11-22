@@ -7,6 +7,7 @@ defmodule Naas do
     {:ok, _} = Agent.start_link(fn -> Process.spawn(fn -> Naas.runMsgServer() end, [:link]) end, name: :message_server)
     {:ok, _} = Agent.start_link(fn -> nil end, name: :push_server)
     Task.start_link(fn -> System.cmd("epmd", []) end)
+    Process.spawn(fn -> Naas.monitorNodes() end, [:link])
 
     if not File.exists?(".config") do
       File.write(".config", "{}")
@@ -38,6 +39,23 @@ defmodule Naas do
         nil
       "cli" ->
         Cli.start
+    end
+  end
+  def monitorNodes() do
+    :net_kernel.monitor_nodes(true)
+    receive do
+      _ ->
+      Naas.waitForMoreNodes
+    end
+  end
+  def waitForMoreNodes() do
+    receive do
+      _ ->
+        Naas.waitForMoreNodes
+      after 100 ->
+        WitApi.get("list")
+        WitApi.get("self")
+        Naas.monitorNodes
     end
   end
 
@@ -199,7 +217,6 @@ defmodule Naas do
         Node.set_cookie(Node.self,c|> String.to_atom)
         Log.detail(nil,"Started arg cookie: "<>Log.dataHold,[c])
     end
-    WitApi.get("self")
     nil
   end
   def connectNode(address,cookie\\nil) do
@@ -220,7 +237,6 @@ defmodule Naas do
     false -> Cli.error "Failed to connect to node: " <> address; false
     :ignored -> Cli.error("Local node is not alive"); :ignored
     end
-    WitApi.get("list")
     res
   end
   def getGroupInfo(group, cookie\\nil) do
