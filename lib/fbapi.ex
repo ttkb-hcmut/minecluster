@@ -170,7 +170,7 @@ defmodule Firebase1 do
   def pull(auth) do
     {:ok, conn} = Firebase1.init_site(auth)
     {:ok, conn, _} = HTTP1.request(conn, "GET", "/sync", [], nil)
-		{:ok, conn, data, _res} = receive do: (message -> handle2(conn, message, fn conn, data ->
+		{:ok, _conn, data, _res} = receive do: (message -> handle2(conn, message, fn conn, data ->
       {:ok, conn, data}
     end))
     {:ok, data}
