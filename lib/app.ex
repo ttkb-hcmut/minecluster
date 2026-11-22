@@ -15,11 +15,8 @@ defmodule App do
   #   Process.sleep(1000)
   #   loop()
   # end
-
 	def start(_type, _arg) do
-		{:ok, pid} = App.Supervisor.start_link(:ok)
-    Naas.startup()
-		{:ok, pid}
+		App.Supervisor.start_link(:ok)
 	end
 end
 

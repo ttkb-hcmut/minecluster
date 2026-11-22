@@ -7,7 +7,9 @@ defmodule Wit do
   end
   def getPython do
     case {System.find_executable("python"),System.find_executable("py")} do
-      {nil,nil} -> Log.error(nil,"Cannot find Python on your system")
+      {nil,nil} ->
+        Log.error(nil,"Cannot find Python on your system")
+        Naas.setConfig("guiSocket","cli")
       {nil,e} -> e
       {e,nil} -> e
     end
@@ -70,8 +72,8 @@ defmodule Wit do
     case {Agent.get(:push_server, & &1),data} do
       {nil,_} -> nil
         Log.warning(nil,"No push server")
-        Process.sleep(1000)
-        Wit.pushToGui(data)
+        # Process.sleep(1000)
+        # Wit.pushToGui(data)
       {a,:kill} ->
         try do
           Process.send(a,:kill,[])

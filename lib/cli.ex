@@ -299,6 +299,16 @@ defmodule Cli do
               }
             }
           },
+          guiSocket:  %{
+            i: "Default secret node cookie used when connecting to nodes with the same cookie",
+            a:  fn _ -> Naas.setConfig("guiSocket",nil) end,
+            c:  %{
+              "": %{
+                i: "String",
+                a: fn {_,_,[v|_]} -> Naas.setConfig("guiSocket",v) end
+              }
+            }
+          },
           logLevel:  %{
             i: "Configure how much logging information is posted to the Cli [info detail warning error]",
             a:  fn opts ->  Naas.setConfig("logLevel",opts |> Map.get("",[]) |> Enum.filter(fn e -> e in ["info","detail","warning","error"] end)) end,
