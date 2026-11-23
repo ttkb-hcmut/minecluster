@@ -27,9 +27,18 @@ defmodule App.Supervisor do
 
 	@impl true
 	def init(_init_arg) do
-		children = [
-      # {Goth, name: App.Goth, source: {:service_account, System.fetch_env!("GOOGLE_KEY") |> Jason.decode!()}}
-		]
+    key = try do
+      System.fetch_env!("GOOGLE_KEY") |> Jason.decode!()
+    rescue
+      _ -> nil
+    end
+
+		children = if not is_nil(key) do
+      [{Goth, name: App.Goth, source: {:service_account, key}}]
+    else
+      Log.error(nil,"Firebase API key not found, please provide as an env variable")
+      []
+    end
 		Supervisor.init(children, strategy: :one_for_one)
 	end
 end

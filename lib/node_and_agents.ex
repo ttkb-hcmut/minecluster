@@ -53,6 +53,7 @@ defmodule Naas do
       _ ->
         Naas.waitForMoreNodes
       after 100 ->
+        Naas.syncGroupInfo()
         WitApi.get("list")
         WitApi.get("self")
         Naas.monitorNodes
@@ -257,7 +258,7 @@ defmodule Naas do
       |> JSON.decode!
       File.close(file)
       %{
-        "central"     => data |> Map.get("central"    ,%{}),
+        "central"     => data |> Map.get("central"    ,nil),
         "connections" => data |> Map.get("connections",[Node.self |> Atom.to_string]),
         "cookie"      => data |> Map.get("cookie"     ,cookie),
         "server"      => data |> Map.get("server"     ,nil)
@@ -329,44 +330,73 @@ defmodule Naas do
   # end
 
   def syncGroupInfo() do
-    case Agent.get(:group, & &1) do
-    nil -> Log.error(nil,"Not connected to a group")
-    g ->
-      case getGroupInfo(g) do
-      nil ->
-        Log.error(nil,"Unknown group: "<> Log.dataHold(),[g])
-      info ->
-        c = info |> Map.get("cookie", nil)
-        {_,d} = info |> Map.get_and_update("connections",
-        fn l ->
-          {
-            l,
-            [
-              Node.self() |> Atom.to_string
-              |
-              Node.list
-              |> Naas.inParallel(fn ele ->
-                :erpc.call(ele,fn -> [ Node.self() |> Atom.to_string() | (Naas.getGroupInfo(nil, c) |> Map.get("connections",[]))] end)
-              end)
-              |> List.foldl([], fn ele,acc ->
-                ele ++ acc
-              end)
-            ] |> Enum.uniq
-          }
-        end)
-        Naas.setGroupInfo(d,g)
 
-        # broadcast new connections to the rest of the connections
-        Node.list
-        |> Naas.inParallel(fn ele ->
-          :erpc.call(ele,fn ->
-            Naas.getGroupInfo(nil,c)
-            |> Map.put("connection",d["connections"])
-            |> Naas.setGroupInfo(listGroup(:map) |> Map.get(c, nil))
+    case Naas.cookieIs do
+    nil ->
+      Log.error(nil,"Not connected to a group")
+    c ->
+      ################## CALLING OUT TO ALL MY FELLOW NODES
+      {_,d} = Naas.getGroupInfo(nil,c) |> Map.get_and_update("connections",
+      fn l ->
+        {
+          l,
+          Node.list |> Naas.inParallel(fn ele ->
+            :erpc.call(ele,fn ->
+              [ Node.self |> Atom.to_string |
+              (Naas.getGroupInfo(nil, c) |> Map.get("connections",[]))]
+            end)
           end)
-        end)
-        Log.detail(nil,Log.dataHold(),[d])
-      end
+          |> List.flatten([Node.self |> Atom.to_string | l])
+          |> Enum.uniq
+        }
+      end)
+      ################ ALL NODES, LEND ME YOUR GROUP CONFIGS
+      ddelta = d
+      |> Map.get("connections",[])
+      |> Enum.filter(fn v -> (v |> String.to_atom) in Node.list end)
+      |> Naas.inParallel(fn ele -> :erpc.call(ele |> String.to_atom,fn ->
+        gc = Naas.getGroupInfo(nil,c)
+        {
+          case gc|> Map.get("central",nil) do
+            %{"firebase" => a} -> %{"firebase" => a}
+            %{"node"     => a} -> %{"node"     => a}
+            _ -> nil
+          end,
+          case gc|> Map.get("server",nil) do
+            %{"java"    => a} -> %{"java"    => a}
+            %{"bedrock" => a} -> %{"bedrock" => a}
+            _ -> nil
+          end,
+          ele
+        }
+      end) end)
+      |> List.foldl(%{"central" => nil,"server" => nil}, fn ele,acc ->
+      %{
+        "central" => case {ele[0],acc[0]} do
+          {nil,a} -> a
+          {a,nil} -> a
+          {a,b} when a == b -> a
+          {a,b} -> Log.warning(nil,"Conflicting central data from #{Log.dataHold}",[ele[2],a,b])
+            b
+        end,
+        "server"  => case {ele[0],acc[0]} do
+          {nil,a} -> a
+          {a,nil} -> a
+          {a,b} when a == b -> a
+          {a,b} -> Log.warning(nil,"Conflicting server data from #{Log.dataHold}",[ele[2],a,b])
+            b
+        end,
+      }
+      end)
+      dnew = d |> Map.merge(ddelta)
+      ################ ONE FOR ALL SCENE IDK I DONT WATCH MY HERO ACADEMIA
+      dnew
+      |> Map.get("connections",[])
+      |> Enum.filter(fn v -> (v |> String.to_atom) in Node.list end)
+      |> Naas.inParallel(fn ele -> :erpc.call(ele |> String.to_atom,fn ->
+        dnew |> Naas.setGroupInfo(listGroup(:map) |> Map.get(c, nil))
+      end) end)
+      Log.detail(nil,"Synced group config: " <> Log.dataHold,[dnew])
     end
     nil
   end
@@ -475,7 +505,7 @@ defmodule Naas do
         cookie = Naas.secretGen
         ;
         %{
-          "central" => %{},
+          "central" => nil,
           "connections" => [Node.self |> Atom.to_string],
           "cookie" => cookie,
           "server" => nil
