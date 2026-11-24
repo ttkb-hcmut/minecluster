@@ -61,7 +61,7 @@ defmodule Mj do
   end
   def withInstall(plat,vers) do
     group = Agent.get(:group, & &1)
-    groupInfo = Naas.getGroupInfo(group)
+    groupInfo = NodeGroup.getConfig(group)
     existingServer = groupInfo |> Map.get("server",nil)
     case {group,existingServer,versionToApi(plat,vers),plat} do
       {nil,_,_,_} ->
@@ -76,8 +76,8 @@ defmodule Mj do
         File.mkdir_p("./groups/#{group}/data/versions/#{vers}")
 
         groupInfo
-        |> Map.put("server", ["java",vers])
-        |> Naas.setGroupInfo(group)
+        |> Map.put("server", %{"java" => vers})
+        |> NodeGroup.setConfig(group)
       {_,_,api,"bedrock"} ->
         download("bedrock",vers,api)
         Cli.detail("Extracting zip...")
@@ -86,13 +86,13 @@ defmodule Mj do
         Cli.detail("Done extracting!")
 
         groupInfo
-        |> Map.put("server", ["java",vers])
-        |> Naas.setGroupInfo(group)
+        |> Map.put("server", %{"bedrock" => vers})
+        |> NodeGroup.setConfig(group)
     end
   end
   def runServer(withInstall\\nil) do
     group = Agent.get(:group, & &1)
-    case Naas.getGroupInfo(group) do
+    case NodeGroup.getConfig(group) do
     nil ->
       Log.error(nil,"Not in a group to start the server in")
     _ ->

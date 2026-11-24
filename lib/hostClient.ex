@@ -12,7 +12,7 @@ defmodule Host do
       :erpc.call(ele, fn ->
         case Agent.get(:role, & &1) do
         :online ->
-          Naas.connectGroup(Agent.get(:group, & &1))
+          NodeGroup.connect(Agent.get(:group, & &1))
           nil
         _ ->
           nil
@@ -27,12 +27,12 @@ defmodule Host do
         # start the mc server
         Log.info(nil,"Starting server...")
         Mj.runServer()
-        Naas.broadcastMessage "Pls join mc server on ip:\n#{Node.self |> Atom.to_string}"
+        Broadcast.msg "Pls join mc server on ip:\n#{Node.self |> Atom.to_string}"
         runServer()
       :stop ->
         updateCentral()
         "Stopping server..." |> Cli.detail
-        Naas.broadcastMessage "Server is stopping"
+        Broadcast.msg "Server is stopping"
         exit(:normal)
       {:command, msg} ->
         "Ran command:\n#{msg}" |> Cli.detail

@@ -270,7 +270,7 @@ defmodule Cli do
       },
       msg: %{
         i: "Broadcast a message to all connected nodes",
-        a: fn opts -> Naas.broadcastMessage(opts |> Map.get("",[]) |> Enum.join(" ")) end,
+        a: fn opts -> Broadcast.msg(opts |> Map.get("",[]) |> Enum.join(" ")) end,
         p: %{
           "" => "Message to be broadcasted"
         }
@@ -281,48 +281,48 @@ defmodule Cli do
         c: %{
           address:  %{
             i: "Address of self node used when connecting with other nodes",
-            a:  fn _ ->  Naas.setConfig("address",nil) end,
+            a:  fn _ ->  SelfConfig.set("address",nil) end,
             c:  %{
               "": %{
                 i: "String in the form of <name>@<ip address>",
-                a: fn {_,_,[v|_]} -> Naas.setConfig("address",v) end
+                a: fn {_,_,[v|_]} -> SelfConfig.set("address",v) end
               }
             }
           },
           cookie:  %{
             i: "Default secret node cookie used when connecting to nodes with the same cookie",
-            a:  fn _ -> Naas.setConfig("cookie",nil) end,
+            a:  fn _ -> SelfConfig.set("cookie",nil) end,
             c:  %{
               "": %{
                 i: "String",
-                a: fn {_,_,[v|_]} -> Naas.setConfig("cookie",v) end
+                a: fn {_,_,[v|_]} -> SelfConfig.set("cookie",v) end
               }
             }
           },
           guiSocket:  %{
             i: "Default secret node cookie used when connecting to nodes with the same cookie",
-            a:  fn _ -> Naas.setConfig("guiSocket",nil) end,
+            a:  fn _ -> SelfConfig.set("guiSocket",nil) end,
             c:  %{
               "": %{
                 i: "String",
-                a: fn {_,_,[v|_]} -> Naas.setConfig("guiSocket",v) end
+                a: fn {_,_,[v|_]} -> SelfConfig.set("guiSocket",v) end
               }
             }
           },
           logLevel:  %{
             i: "Configure how much logging information is posted to the Cli [info detail warning error]",
-            a:  fn opts ->  Naas.setConfig("logLevel",opts |> Map.get("",[]) |> Enum.filter(fn e -> e in ["info","detail","warning","error"] end)) end,
+            a:  fn opts ->  SelfConfig.set("logLevel",opts |> Map.get("",[]) |> Enum.filter(fn e -> e in ["info","detail","warning","error"] end)) end,
             p:  %{}
           },
           all:  %{
             i: "Displays all active configs",
-            a:  fn _ -> Naas.getAllConfig() end
+            a:  fn _ -> SelfConfig.getDisplayConfig() end
           }
         }
       },
       start:  %{
         i: "Starts Node address and cookie defined in config, or with the arg provided",
-        a: fn opts -> Naas.startNode(
+        a: fn opts -> NodeCore.start(
           opts |> Map.get("-a",[]) |> List.first,
           opts |> Map.get("-c",[]) |> List.first)
         end,
@@ -339,7 +339,7 @@ defmodule Cli do
             i: "Connect to group with provided group name following",
             a: Log.Info.lazy(
                   fn ->
-                  Naas.listGroup()
+                  NodeGroup.list()
                   |> List.foldl({nil,"Select a Group:",[]},
                     fn ele,{id,template,data} ->
                       { id,
@@ -351,17 +351,17 @@ defmodule Cli do
             c: %{
               "": %{
                 i: "Input a group name from listed",
-                a: fn {_,_,[c|_]} -> Naas.connectGroup(c) end
+                a: fn {_,_,[c|_]} -> NodeGroup.connect(c) end
               }
             }
           },
           "": %{
             i: "Destination node address with the cookie provided by Config or the arg following",
-            a: fn {_,_,[a|_]} -> Naas.connectNode(a);nil end,
+            a: fn {_,_,[a|_]} -> NodeCore.connect(a);nil end,
             c: %{
               "": %{
                 i: "Cookie override",
-                a: fn {_,_,[c,a|_]} -> Naas.connectNode(a,c);nil end
+                a: fn {_,_,[c,a|_]} -> NodeCore.connect(a,c);nil end
               }
             }
           }
@@ -369,13 +369,13 @@ defmodule Cli do
       },
       list: %{
         i: "List all nodes connected to",
-        a: fn _ -> Naas.networkInfo() |> Log.flush;nil end
+        a: fn _ -> NodeCore.networkInfo() |> Log.flush;nil end
       },
       group: %{
         i: "List all addresses stored in group",
         a: Log.Info.lazy(
           fn ->
-          Naas.listGroup()
+          NodeGroup.list()
           |> List.foldl({"availableGroups","Available groups:",[]},
             fn ele,{id,template,data} ->
               { id,
@@ -391,7 +391,7 @@ defmodule Cli do
             c: %{
               "": %{
                 i: "Name of group",
-                a: fn {_,_,[n|_]} -> Naas.makeGroup(n) end,
+                a: fn {_,_,[n|_]} -> NodeGroup.make(n) end,
               },
             }
           },
@@ -399,7 +399,7 @@ defmodule Cli do
             i: "Deletes the group with provided arg",
             a: Log.Info.lazy(
                   fn ->
-                  Naas.listGroup()
+                  NodeGroup.list()
                   |> List.foldl({nil,"Delete Group #{IO.ANSI.red()}[THIS ACTION IS NOT REVERSIBLE]#{IO.ANSI.reset()}:",[]},
                     fn ele,{id,template,data} ->
                       { id,
@@ -411,33 +411,33 @@ defmodule Cli do
             c: %{
               "": %{
                 i: "Deletes the group with provided arg",
-                a: fn {_,_,[c|_]} -> Naas.deleteGroup(c) end
+                a: fn {_,_,[c|_]} -> NodeGroup.delete(c) end
               }
             }
           },
           status: %{
             i: "Shows information about the group you are in",
-            a: fn _ -> Naas.groupStatus() |> Log.flush; nil end
+            a: fn _ -> NodeGroup.status() |> Log.flush; nil end
           },
-          add: %{
-            i: "Adds all nodes currently connected or provided address arg to the group currently in or provided arg",
-            a: nil,
-            c: %{
-              "": %{
-                i: "Address to be added to group",
-                a: fn {_,_,[a|_]} -> Naas.addGroup(a) end,
-                c: %{
-                  "": %{
-                    i: "Group to add to",
-                    a: fn {_,_,[g,a|_]} -> Naas.addGroup(a,g) end
-                  }
-                }
-              }
-            }
-          },
+          # add: %{
+          #   i: "Adds all nodes currently connected or provided address arg to the group currently in or provided arg",
+          #   a: nil,
+          #   c: %{
+          #     "": %{
+          #       i: "Address to be added to group",
+          #       a: fn {_,_,[a|_]} -> Naas.addGroup(a) end,
+          #       c: %{
+          #         "": %{
+          #           i: "Group to add to",
+          #           a: fn {_,_,[g,a|_]} -> Naas.addGroup(a,g) end
+          #         }
+          #       }
+          #     }
+          #   }
+          # },
           sync: %{
             i: "Collects all other connections from other nodes in this group",
-            a: fn _ -> Naas.syncGroupInfo() end
+            a: fn _ -> NodeGroup.syncConfig() end
           },
           role: %{
             i: "Changes your current role in the group",
@@ -445,15 +445,15 @@ defmodule Cli do
             c: %{
               online: %{
                 i: "Collects all other connections from other nodes in this group",
-                a: fn _ -> Naas.setRole(:online) end
+                a: fn _ -> NodeGroup.setRole(:online) end
               },
               host: %{
                 i: "Collects all other connections from other nodes in this group",
-                a: fn _ -> Naas.setRole(:host) end
+                a: fn _ -> NodeGroup.setRole(:host) end
               },
               central: %{
                 i: "Collects all other connections from other nodes in this group",
-                a: fn _ -> Naas.setRole(:central) end
+                a: fn _ -> NodeGroup.setRole(:central) end
               },
             }
           },
@@ -508,11 +508,11 @@ defmodule Cli do
       },
       disconnect: %{
         i: "Disconnects fromm current Node network",
-        a: fn _ -> Naas.disconnectNode() end
+        a: fn _ -> NodeCore.disconnect() end
       },
       stop: %{
         i: "Stops node",
-        a: fn _ -> Naas.stopNode() end
+        a: fn _ -> NodeCore.stop() end
       }
     }
   }

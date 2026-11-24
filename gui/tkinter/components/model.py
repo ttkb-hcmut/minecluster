@@ -33,7 +33,8 @@ class Model:
   groupStatusName: str = ""
   groupStatusConnections: list = field(default_factory=list)
   groupStatusCookie: str = ""
-  groupStatusServer: list = field(default_factory=list)
+  groupStatusServer: dict = field(default_factory=dict)
+  groupStatusCentral: dict = field(default_factory=dict)
   ## server/list
   versionsJava: list = field(default_factory = list)
   versionsBedrock: list = field(default_factory = list)

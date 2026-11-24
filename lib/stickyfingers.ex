@@ -1,11 +1,11 @@
 defmodule Zm
 	do
 	def mkpath() do
-		Naas.secretGen
+		Utils.secretGen
 	end
 
   def getCentralApi(group) do
-    central = Naas.getGroupInfo(group)
+    central = NodeGroup.getConfig(group)
     |> Map.get("central", nil)
     case central do
       %{"firebase" => a} -> {CentralInterface,a}
@@ -120,12 +120,12 @@ defmodule NodeCentral do
     case Agent.get(:group, & &1) do
       nil ->
         Cli.error "How the hell did you reach this error message?!?"
-        Naas.setRole(:online)
+        NodeGroup.setRole(:online)
         nil
       g ->
-        # Naas.getGroupInfo(g)
+        # NodeGroup.getConfig(g)
         # |> Map.put("central", %{node: (Node.self |> Atom.to_string) })
-        # |> Naas.setGroupInfo(g)
+        # |> NodeGroup.setConfig(g)
         if not File.exists?("./central/#{g}") do
           Zm.post(g)
         end
@@ -135,7 +135,7 @@ defmodule NodeCentral do
   def getCentralNode() do
     self = Node.self()
     list = [self|Node.list()]
-    |> Naas.inParallel(fn ele ->
+    |> Utils.inParallel(fn ele ->
       :erpc.call(ele, fn ->
         { ele,
           Agent.get(:role, & &1) == :central
@@ -165,7 +165,7 @@ defmodule NodeCentral do
     end)
     |> Stream.run()
   end
-  def post(srcFile,centralData\\nil) do
+  def post(srcFile,_centralData\\nil) do
     case NodeCentral.getCentralNode() do
     nil -> nil
       Log.warning(nil,"No central node found")
@@ -177,7 +177,7 @@ defmodule NodeCentral do
     nil
   end
 
-  def fetch(centralData\\nil) do
+  def fetch(_centralData\\nil) do
     case NodeCentral.getCentralNode() do
     nil -> nil
       Log.warning(nil,"No central node found")

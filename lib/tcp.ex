@@ -9,7 +9,7 @@ defmodule Wit do
     case {System.find_executable("python"),System.find_executable("py")} do
       {nil,nil} ->
         Log.error(nil,"Cannot find Python on your system")
-        Naas.setConfig("guiSocket","cli")
+        SelfConfig.set("guiSocket","cli")
       {nil,e} -> e
       {e,nil} -> e
     end
@@ -171,27 +171,27 @@ defmodule WitApi do
     case request do
       # get all configs
       "config/all" ->
-        Log.new |> Log.info("",Naas.getConfig(nil),"configAll")
+        Log.new |> Log.info("",SelfConfig.get(nil),"configAll")
 
       # get self address and self cookie
       "self" ->
-        Naas.getNodeSelf()
+        NodeCore.getNodeSelf()
 
       # get all nodes connected
       "list" ->
-        Naas.networkInfo(nil)
+        NodeCore.networkInfo(nil)
 
       # get group infos
       ["group/info", cookie] ->
-        Log.new |> Log.info("",Naas.getGroupInfo(nil,cookie)|>Map.put("name",Naas.listGroup(:map)|>Map.get(cookie,nil)),"groupInfo")
+        Log.new |> Log.info("",NodeGroup.getConfig(nil,cookie)|>Map.put("name",NodeGroup.list(:map)|>Map.get(cookie,nil)),"groupInfo")
 
       # get all group info
       "group/list" ->
-        Log.new |> Log.info("",Naas.listGroup(:map),"groupList")
+        Log.new |> Log.info("",NodeGroup.list(:map),"groupList")
 
       # get current group's information
       "group/status" ->
-        Naas.groupStatus()
+        NodeGroup.status()
 
       # get available server versions
       "server/list" ->

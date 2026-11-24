@@ -131,7 +131,7 @@ defmodule Log do
     end
   end
   def logLevel(check \\ nil) do
-    case {Naas.getConfig("logLevel"),check} do
+    case {SelfConfig.get("logLevel"),check} do
       {_,nil} -> false
       {nil,_} -> check in ["info","detail","warning","error"]
       {a,_}   -> check in a
