@@ -1,9 +1,25 @@
+defmodule Nix.System do
+  def cmd(deps, progname, args) do
+    command_str = Enum.join([progname | args], " ")
+    System.cmd("nix-shell", ["-p" | deps] ++ ["--command", command_str])
+  end
+end
+
+defmodule Firebase0.Firebase_tools do
+  def cmd(args) do
+		{out, retval} = Nix.System.cmd ["firebase-tools"], "firebase", args
+    {out, retval}
+  end
+
+  def version, do: Firebase0.Firebase_tools.cmd(["--version"])
+end
+
 defmodule Firebase0 do
 	@moduledoc "Development impl"
 
 	@spec check() :: {:ok, [String.t()]} | {:error, String.t()}
 	def check do
-		{out, 0} = System.cmd "firebase", ["--version"]
+		{out, 0} = Firebase0.Firebase_tools.version()
 		ver = out |> String.trim |> String.split(".")
 		if length(ver) > 0, do: {:ok, ver}, else: {:error, out}
   end
