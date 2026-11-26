@@ -69,8 +69,10 @@ defmodule Firebase1 do
 		{:ok, conn}
   end
 
+  def mkauth(auth), do: [{"Authorization", "Bearer #{auth._.token}"}]
+
 	def check(conn, auth) do
-		{:ok, conn, _} = HTTP1.request(conn, "GET", "/v1beta1/projects/#{auth.project_id}/sites", [{"Authorization", "Bearer #{auth._.token}"}, {"Content-Type", "application/json"}], nil)
+		{:ok, conn, _} = HTTP1.request(conn, "GET", "/v1beta1/projects/#{auth.project_id}/sites", mkauth(auth) ++ [{"Content-Type", "application/json"}], nil)
 		stm = receive do: (message -> handle(conn, message, fn conn, _data ->
       {:ok, conn, nil}
     end))
