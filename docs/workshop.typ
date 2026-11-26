@@ -5,3 +5,4 @@ We will describe a system that we've designed and internally implemented at TTKB
 == The client
 == The core NaaS calculus
 == Discussion
+#bibliography("works.yml")
