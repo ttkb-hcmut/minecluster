@@ -15,4 +15,4 @@ IEx.configure(
     doc_title: [:cyan, :bright, :underline],
   ]
 )
-Naas.startup()
+NodeCore.initialize()

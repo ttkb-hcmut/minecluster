@@ -1,25 +1,16 @@
 defmodule Zm
 	do
 	def mkpath() do
-		Naas.secretGen
+		Utils.secretGen
 	end
 
   def getCentralApi(group) do
-    central = Naas.getGroupInfo(group)
-    |> Map.get("central", %{})
-    central
-    |> Map.keys
-    |> then(fn x ->
-      {
-        case x do
-          ["node"|_] -> NodeCentral
-          ["firebase"|_] -> Cli.warning("Firebase api not implemented")
-            CentralInterface
-          _ -> CentralInterface
-        end,
-        central |> Map.get(x)
-      }
-    end)
+    central = NodeGroup.getConfig(group)
+    |> Map.get("central", nil)
+    case central do
+      %{"firebase" => a} -> {CentralInterface,a}
+      _ -> {NodeCentral, nil}
+    end
   end
   def zip(name) do
     tempPath = "./temp/#{name}-#{mkpath()}"
@@ -43,8 +34,8 @@ defmodule Zm
   def post(group\\Agent.get(:group,& &1)) do
     if(not (group |> is_nil)) do
       file = zip(group)
-      {central, _} = getCentralApi(group)
-      central.post(file)
+      {central, centralData} = getCentralApi(group)
+      central.post(file,centralData)
       File.rm_rf!(file |> Path.dirname)
       # send from temp folder to recipient
     end
@@ -53,8 +44,8 @@ defmodule Zm
 
   def fetch(group\\Agent.get(:group,& &1)) do
     if(not (group |> is_nil)) do
-      {central, api} = getCentralApi(group)
-      case central.fetch(api) do
+      {central, centralData} = getCentralApi(group)
+      case central.fetch(centralData) do
       nil ->
         Cli.warning("Fetching from central failed")
       file ->
@@ -70,13 +61,57 @@ defmodule Zm
 end
 
 defmodule CentralInterface do
-  def post(_) do
-    Cli.warning("Post api unimplemented")
+  def post(_,_) do
+    Log.warning(nil,"Post api unimplemented")
     nil
   end
   def fetch(_) do
-    Cli.warning("Fetch api unimplemented")
+    Log.warning(nil,"Fetch api unimplemented")
     nil
+  end
+end
+
+defmodule FirebaseCentral do
+  def write(chunk,dest) do
+    {:ok, file} = File.open(dest, [:append, :binary, :raw])
+    IO.binwrite(file, [chunk])
+    File.close(file)
+  end
+  def post(filePath,centralData) do
+    case File.read(filePath) do
+      {:ok,data} ->
+        iv = :crypto.strong_rand_bytes(12)
+        key = :crypto.hash(:md5,Agent.get(:group, & &1)) # 16 bytes
+        {encrypted,tag} = :crypto.crypto_one_time_aead(
+          :aes_128_gcm,key,iv,
+          data,
+          <<>>, true
+        )
+
+        Firebase1.set(iv<>tag<>encrypted,centralData)
+
+      _ -> Log.error(nil, "Firebase Central errored")
+    end
+    nil
+  end
+  def fetch(centralData) do
+    centralFileName = "archive.zip"
+    tempPath = "./temp/#{Agent.get(:group, & &1)}-#{Zm.mkpath}/#{centralFileName}"
+
+    key = :crypto.hash(:md5,Agent.get(:group, & &1)) # 16 bytes
+    <<iv::binary-12, tag::binary-16, encrypted::binary>> = Firebase1.get(centralData)
+    case :crypto.crypto_one_time_aead(
+          :aes_128_gcm,key,iv,
+          encrypted,
+          tag, <<>>, false
+    ) do
+      :error ->
+        Log.error(nil, "Decrypt file failed")
+      data ->
+        data
+        |> write(tempPath)
+    end
+    tempPath
   end
 end
 
@@ -85,12 +120,12 @@ defmodule NodeCentral do
     case Agent.get(:group, & &1) do
       nil ->
         Cli.error "How the hell did you reach this error message?!?"
-        Naas.setRole(:online)
+        NodeGroup.setRole(:online)
         nil
       g ->
-        Naas.getGroupInfo(g)
-        |> Map.put("central", %{node: (Node.self |> Atom.to_string) })
-        |> Naas.setGroupInfo(g)
+        # NodeGroup.getConfig(g)
+        # |> Map.put("central", %{node: (Node.self |> Atom.to_string) })
+        # |> NodeGroup.setConfig(g)
         if not File.exists?("./central/#{g}") do
           Zm.post(g)
         end
@@ -100,7 +135,7 @@ defmodule NodeCentral do
   def getCentralNode() do
     self = Node.self()
     list = [self|Node.list()]
-    |> Naas.inParallel(fn ele ->
+    |> Utils.inParallel(fn ele ->
       :erpc.call(ele, fn ->
         { ele,
           Agent.get(:role, & &1) == :central
@@ -115,7 +150,7 @@ defmodule NodeCentral do
       central
     end
   end
-  def write(dest,chunk) do
+  def write(chunk,dest) do
     {:ok, file} = File.open(dest, [:append, :binary, :raw])
     IO.binwrite(file, [chunk])
     File.close(file)
@@ -126,14 +161,14 @@ defmodule NodeCentral do
     :erpc.call(sendTo,File,:mkdir_p!,[dest |> Path.dirname])
     File.stream!(src,chunk_size)
     |> Stream.each(fn chunk ->
-      :erpc.call(sendTo, NodeCentral, :write, [dest, chunk])
+      :erpc.call(sendTo, NodeCentral, :write, [chunk,dest])
     end)
     |> Stream.run()
   end
-  def post(srcFile) do
-    case getCentralNode() do
-    nil ->
-      Cli.warning("no central node found")
+  def post(srcFile,_centralData\\nil) do
+    case NodeCentral.getCentralNode() do
+    nil -> nil
+      Log.warning(nil,"No central node found")
     central ->
       centralFileName = "#{:erpc.call(central, fn -> Agent.get(:group, & &1) end)}.zip"
       filePath = "./central/#{centralFileName}"
@@ -141,23 +176,13 @@ defmodule NodeCentral do
     end
     nil
   end
-  def fetch(api\\nil) do
-    central = case {getCentralNode(),api} do
-    {nil,nil} ->
-      nil
-    {nil,_} ->
-      c = Naas.cookieIs
-      Naas.connectNode(api,c)
-      api |> String.to_atom
-    {c,_} ->
-      c
-    end
 
-    case central do
-    nil ->
-      Cli.warning("No central node found")
+  def fetch(_centralData\\nil) do
+    case NodeCentral.getCentralNode() do
+    nil -> nil
+      Log.warning(nil,"No central node found")
       nil
-    _ ->
+    central ->
       centralFileName = "#{:erpc.call(central, fn -> Agent.get(:group, & &1) end)}.zip"
       filePath = "./central/#{centralFileName}"
       tempPath = "./temp/#{Agent.get(:group, & &1)}-#{Zm.mkpath}/#{centralFileName}"

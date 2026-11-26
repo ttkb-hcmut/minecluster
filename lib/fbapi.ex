@@ -206,4 +206,18 @@ defmodule Firebase1 do
     true = (r_content == content)
   end
 
+  ############################################
+  def set(zipBinary,auth_data) do
+    # read project_id and site_id from the central field of group config (maybe api key ??!?)
+    auth = %Firebase1.Goth{ project_id: auth_data["project_id"], site_id: auth_data["site_id"], _: Goth.fetch!(App.Goth) }
+    zipped_content = :zlib.gzip(zipBinary)
+    zipped_checksum = :crypto.hash(:sha256, zipped_content) |> Base.encode16 |> String.downcase
+    {:ok, _} = Firebase1.push(auth, {:zipped_checksum, zipped_checksum}, {:zipped_content, zipped_content})
+  end
+
+  def get(auth_data) do
+    auth = %Firebase1.Goth{ project_id: auth_data["project_id"], site_id: auth_data["site_id"], _: Goth.fetch!(App.Goth) }
+    {:ok, r_content} = Firebase1.pull(auth)
+    r_content
+  end
 end
